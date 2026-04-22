@@ -1,0 +1,113 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 0. Default Deny Catch-all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- Helper Primitives ---
+    function isSignedIn() { return request.auth != null; }
+    function isEmailVerified() { return isSignedIn() && request.auth.token.email_verified == true; }
+    function isStaff() { return isEmailVerified(); }
+    function isValidId(id) { return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); }
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+
+    // --- Entity Specific Helpers ---
+
+    function isValidDutyLog(data) {
+      return data.keys().hasAll(['case_id', 'created_at', 'shift', 'room_number', 'guest_name', 'issue_type', 'priority', 'description', 'action_taken', 'owner', 'status', 'follow_up_required']) &&
+             data.case_id is string && data.case_id.size() <= 50 &&
+             data.created_at is timestamp &&
+             data.shift in ['AM', 'PM', 'Night'] &&
+             data.room_number is string && data.room_number.size() <= 20 &&
+             data.guest_name is string && data.guest_name.size() <= 100 &&
+             data.issue_type is string && data.issue_type.size() <= 50 &&
+             data.priority in ['Low', 'Medium', 'High', 'Critical'] &&
+             data.status in ['Open', 'In Progress', 'Pending', 'Resolved'] &&
+             data.description is string && data.description.size() <= 5000 &&
+             data.action_taken is string && data.action_taken.size() <= 5000 &&
+             data.owner is string && data.owner.size() <= 128 &&
+             data.follow_up_required is bool &&
+             ( !data.keys().contains('attachments') || (data.attachments is list && data.attachments.size() <= 15) ) &&
+             ( !data.keys().contains('resolved_at') || data.resolved_at is timestamp );
+    }
+
+    function isValidHandoverNote(data) {
+      return data.keys().hasAll(['date', 'from_shift', 'to_shift', 'notes', 'unresolved_case_ids']) &&
+             data.date is string && data.date.size() <= 20 &&
+             data.from_shift in ['AM', 'PM', 'Night'] &&
+             data.to_shift in ['AM', 'PM', 'Night'] &&
+             data.notes is string && data.notes.size() <= 10000 &&
+             data.unresolved_case_ids is list && data.unresolved_case_ids.size() <= 100;
+    }
+
+    function isValidStaff(data) {
+      return data.keys().hasAll(['name', 'role', 'email']) &&
+             data.name is string && data.name.size() <= 100 &&
+             data.role is string && data.role.size() <= 50 &&
+             data.email is string && data.email.size() <= 100;
+    }
+
+    function isValidChecklistTask(data) {
+      return data.keys().hasAll(['task_name', 'category', 'shift', 'required', 'completed']) &&
+             data.task_name is string && data.task_name.size() <= 200 &&
+             data.category is string && data.category.size() <= 50 &&
+             data.shift in ['AM', 'PM', 'Night'] &&
+             data.required is bool &&
+             data.completed is bool &&
+             ( !data.keys().contains('completed_by') || data.completed_by is string ) &&
+             ( !data.keys().contains('completed_at') || data.completed_at is timestamp );
+    }
+
+    // --- Collection Routes ---
+
+    match /duty_logs/{logId} {
+      allow list: if isStaff(); 
+      allow get: if isStaff();
+      allow create: if isStaff() && 
+                      isValidId(logId) && 
+                      isValidDutyLog(incoming()) &&
+                      incoming().created_at == request.time;
+      allow update: if isStaff() && 
+                      isValidDutyLog(incoming()) && (
+                        // Protect immutable fields
+                        incoming().case_id == existing().case_id &&
+                        incoming().created_at == existing().created_at &&
+                        // Action based updates
+                        (
+                          // Status transition
+                          incoming().diff(existing()).affectedKeys().hasAny(['status', 'action_taken', 'resolved_at']) ||
+                          // Detail refinement
+                          incoming().diff(existing()).affectedKeys().hasAny(['description', 'priority', 'room_number', 'guest_name', 'attachments', 'owner', 'follow_up_required'])
+                        )
+                      );
+      allow delete: if false;
+    }
+
+    match /handover_notes/{noteId} {
+      allow list, get: if isStaff();
+      allow create: if isStaff() && 
+                      isValidId(noteId) &&
+                      isValidHandoverNote(incoming());
+      allow update, delete: if false;
+    }
+
+    match /checklists/{taskId} {
+      allow list, get: if isStaff();
+      allow create: if isStaff() && isValidId(taskId) && isValidChecklistTask(incoming());
+      allow update: if isStaff() && 
+                      isValidChecklistTask(incoming()) &&
+                      incoming().diff(existing()).affectedKeys().hasAny(['completed', 'completed_by', 'completed_at', 'task_name', 'category', 'shift', 'required']);
+      allow delete: if false;
+    }
+
+    match /staff/{staffId} {
+      allow list, get: if isStaff();
+      allow create: if isSignedIn() && isValidId(staffId) && isValidStaff(incoming());
+      allow update: if false;
+      allow delete: if false;
+    }
+  }
+}

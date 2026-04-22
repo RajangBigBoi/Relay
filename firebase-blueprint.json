@@ -1,0 +1,82 @@
+{
+  "entities": {
+    "DutyLog": {
+      "title": "Duty Log",
+      "description": "Operational issues and incident tracking.",
+      "type": "object",
+      "properties": {
+        "case_id": { "type": "string", "description": "Unique readable ID" },
+        "created_at": { "type": "string", "format": "date-time" },
+        "shift": { "type": "string", "enum": ["AM", "PM", "Night"] },
+        "room_number": { "type": "string" },
+        "guest_name": { "type": "string" },
+        "issue_type": { "type": "string" },
+        "priority": { "type": "string", "enum": ["Low", "Medium", "High", "Critical"] },
+        "description": { "type": "string" },
+        "action_taken": { "type": "string" },
+        "owner": { "type": "string", "description": "Staff ID" },
+        "status": { "type": "string", "enum": ["Open", "In Progress", "Pending", "Resolved"] },
+        "follow_up_required": { "type": "boolean" },
+        "resolved_at": { "type": "string", "format": "date-time" }
+      },
+      "required": ["case_id", "created_at", "shift", "issue_type", "priority", "status", "owner"]
+    },
+    "HandoverNote": {
+      "title": "Handover Note",
+      "description": "Shift transition summaries.",
+      "type": "object",
+      "properties": {
+        "date": { "type": "string", "format": "date" },
+        "from_shift": { "type": "string", "enum": ["AM", "PM", "Night"] },
+        "to_shift": { "type": "string", "enum": ["AM", "PM", "Night"] },
+        "notes": { "type": "string" },
+        "unresolved_case_ids": { "type": "array", "items": { "type": "string" } }
+      },
+      "required": ["date", "from_shift", "to_shift", "notes", "unresolved_case_ids"]
+    },
+    "ShiftChecklist": {
+      "title": "Shift Checklist",
+      "description": "Tasks required for specific shifts.",
+      "type": "object",
+      "properties": {
+        "task_name": { "type": "string" },
+        "category": { "type": "string" },
+        "shift": { "type": "string", "enum": ["AM", "PM", "Night"] },
+        "required": { "type": "boolean" },
+        "completed": { "type": "boolean" },
+        "completed_by": { "type": "string" },
+        "completed_at": { "type": "string", "format": "date-time" }
+      },
+      "required": ["task_name", "category", "shift", "required", "completed"]
+    },
+    "StaffMember": {
+      "title": "Staff Member",
+      "description": "Staff profile and role.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "role": { "type": "string" },
+        "email": { "type": "string", "format": "email" }
+      },
+      "required": ["name", "role", "email"]
+    }
+  },
+  "firestore": {
+    "duty_logs": {
+      "schema": "DutyLog",
+      "description": "Main incident tracking collection"
+    },
+    "handover_notes": {
+      "schema": "HandoverNote",
+      "description": "Shift transition logs"
+    },
+    "checklists": {
+      "schema": "ShiftChecklist",
+      "description": "Daily operational tasks"
+    },
+    "staff": {
+      "schema": "StaffMember",
+      "description": "Staff directory"
+    }
+  }
+}

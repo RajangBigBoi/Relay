@@ -1,0 +1,79 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;900&family=Space+Grotesk:wght@300;400;500;600;700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Space Grotesk", sans-serif;
+  
+  --color-critical: var(--critical);
+  --color-high: var(--high);
+  --color-medium: var(--medium);
+  --color-low: var(--low);
+  --color-glass: var(--glass-bg);
+  --color-glass-border: var(--glass-border);
+  --color-text-muted: var(--text-secondary);
+  --color-bg-dark: var(--bg-main);
+}
+
+@layer base {
+  :root {
+    --bg-main: #0C0C0E;
+    --text-primary: #FFFFFF;
+    --text-secondary: #94A3B8;
+    --glass-bg: rgba(255, 255, 255, 0.04);
+    --glass-border: rgba(255, 255, 255, 0.08);
+    --critical: #EF4444;
+    --high: #F97316;
+    --medium: #FACC15;
+    --low: #22C55E;
+    --sidebar-bg: rgba(0, 0, 0, 0.4);
+    --header-bg: rgba(0, 0, 0, 0.2);
+  }
+
+  :root.light {
+    --bg-main: #F8FAFC;
+    --text-primary: #0F172A;
+    --text-secondary: #64748B;
+    --glass-bg: rgba(255, 255, 255, 0.8);
+    --glass-border: rgba(0, 0, 0, 0.1);
+    --critical: #DC2626;
+    --high: #EA580C;
+    --medium: #CA8A04;
+    --low: #16A34A;
+    --sidebar-bg: rgba(255, 255, 255, 0.6);
+    --header-bg: rgba(255, 255, 255, 0.4);
+  }
+}
+
+body {
+  background-color: var(--bg-main);
+  background-image: 
+    radial-gradient(circle at 0% 0%, var(--bg-accent-1, #1A1A2E) 0%, transparent 50%),
+    radial-gradient(circle at 100% 100%, var(--bg-accent-2, #16213E) 0%, transparent 50%);
+  color: var(--text-primary);
+  min-height: 100vh;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+:root.light body {
+  --bg-accent-1: #E0E7FF;
+  --bg-accent-2: #F1F5F9;
+}
+
+/* Custom Scrollbar */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: var(--glass-border);
+  border-radius: 10px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: var(--text-secondary);
+}
