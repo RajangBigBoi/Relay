@@ -14,7 +14,7 @@ import { cn } from '../lib/utils';
 
 export function Settings() {
   const [theme, setTheme] = useState<'dark' | 'light'>(() => {
-    return (localStorage.getItem('theme') as 'dark' | 'light') || 'dark';
+    return (localStorage.getItem('theme') as 'dark' | 'light') || 'light';
   });
 
   useEffect(() => {
@@ -100,7 +100,7 @@ export function Settings() {
   return (
     <div className="p-10 space-y-10 max-w-4xl mx-auto custom-scrollbar">
       <div>
-        <h2 className="text-3xl font-bold tracking-tight text-white font-sans">Settings</h2>
+        <h2 className="text-3xl font-bold tracking-tight font-sans">Settings</h2>
         <p className="text-[11px] text-text-muted uppercase tracking-[0.2em] font-black mt-1">System configuration & preferences</p>
       </div>
 
@@ -112,15 +112,15 @@ export function Settings() {
                 <section.icon className="w-6 h-6 text-text-muted" />
               </div>
               <div>
-                <h3 className="text-white font-black text-sm uppercase tracking-[0.2em]">{section.title}</h3>
+                <h3 className="font-black text-sm uppercase tracking-[0.2em]">{section.title}</h3>
                 <p className="text-[11px] text-text-muted font-bold uppercase tracking-widest mt-0.5">{section.subtitle}</p>
               </div>
             </div>
             <div className="divide-y divide-glass-border">
               {section.items.map((item, i) => (
-                <div key={i} className="p-8 flex items-center justify-between hover:bg-white/[0.02] transition-colors">
+                <div key={i} className="p-8 flex items-center justify-between hover:bg-glass transition-colors">
                   <div className="space-y-1">
-                    <p className="text-sm font-bold text-white">{item.label}</p>
+                    <p className="text-sm font-bold">{item.label}</p>
                     <p className="text-xs text-text-muted max-w-[400px]">{item.description}</p>
                   </div>
                   <div>{item.action}</div>

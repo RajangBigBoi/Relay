@@ -1,113 +1,111 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // 0. Default Deny Catch-all
+    // 0. Global Safety Net
     match /{document=**} {
       allow read, write: if false;
     }
 
     // --- Helper Primitives ---
-    function isSignedIn() { return request.auth != null; }
-    function isEmailVerified() { return isSignedIn() && request.auth.token.email_verified == true; }
-    function isStaff() { return isEmailVerified(); }
-    function isValidId(id) { return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); }
-    function incoming() { return request.resource.data; }
-    function existing() { return resource.data; }
-
-    // --- Entity Specific Helpers ---
-
-    function isValidDutyLog(data) {
-      return data.keys().hasAll(['case_id', 'created_at', 'shift', 'room_number', 'guest_name', 'issue_type', 'priority', 'description', 'action_taken', 'owner', 'status', 'follow_up_required']) &&
-             data.case_id is string && data.case_id.size() <= 50 &&
-             data.created_at is timestamp &&
-             data.shift in ['AM', 'PM', 'Night'] &&
-             data.room_number is string && data.room_number.size() <= 20 &&
-             data.guest_name is string && data.guest_name.size() <= 100 &&
-             data.issue_type is string && data.issue_type.size() <= 50 &&
-             data.priority in ['Low', 'Medium', 'High', 'Critical'] &&
-             data.status in ['Open', 'In Progress', 'Pending', 'Resolved'] &&
-             data.description is string && data.description.size() <= 5000 &&
-             data.action_taken is string && data.action_taken.size() <= 5000 &&
-             data.owner is string && data.owner.size() <= 128 &&
-             data.follow_up_required is bool &&
-             ( !data.keys().contains('attachments') || (data.attachments is list && data.attachments.size() <= 15) ) &&
-             ( !data.keys().contains('resolved_at') || data.resolved_at is timestamp );
+    function isSignedIn() {
+      return request.auth != null;
     }
 
-    function isValidHandoverNote(data) {
-      return data.keys().hasAll(['date', 'from_shift', 'to_shift', 'notes', 'unresolved_case_ids']) &&
-             data.date is string && data.date.size() <= 20 &&
-             data.from_shift in ['AM', 'PM', 'Night'] &&
-             data.to_shift in ['AM', 'PM', 'Night'] &&
-             data.notes is string && data.notes.size() <= 10000 &&
-             data.unresolved_case_ids is list && data.unresolved_case_ids.size() <= 100;
+    // Verifies the user has a registered staff profile
+    function isStaff() {
+      return isSignedIn() && exists(/databases/$(database)/documents/staffMembers/$(request.auth.uid));
     }
 
-    function isValidStaff(data) {
-      return data.keys().hasAll(['name', 'role', 'email']) &&
-             data.name is string && data.name.size() <= 100 &&
-             data.role is string && data.role.size() <= 50 &&
-             data.email is string && data.email.size() <= 100;
+    // Safely retrieves the current user's staff profile data
+    function getStaffData() {
+      return get(/databases/$(database)/documents/staffMembers/$(request.auth.uid)).data;
     }
 
-    function isValidChecklistTask(data) {
-      return data.keys().hasAll(['task_name', 'category', 'shift', 'required', 'completed']) &&
-             data.task_name is string && data.task_name.size() <= 200 &&
-             data.category is string && data.category.size() <= 50 &&
-             data.shift in ['AM', 'PM', 'Night'] &&
-             data.required is bool &&
-             data.completed is bool &&
-             ( !data.keys().contains('completed_by') || data.completed_by is string ) &&
-             ( !data.keys().contains('completed_at') || data.completed_at is timestamp );
+    // --- Collection: staffMembers ---
+    match /staffMembers/{staffId} {
+      // Users can always read their own profile to bootstrap context
+      allow read: if isSignedIn() && request.auth.uid == staffId;
+      
+      // Staff management restricted to those with manage_staff permission
+      allow list: if isStaff() && getStaffData().permissions.get('manage_staff', false) == true;
+      
+      allow create: if isSignedIn() && (
+        // Self-provisioning (bootstrap) if no profile exists
+        (!exists(/databases/$(database)/documents/staffMembers/$(request.auth.uid)) && request.auth.uid == staffId) ||
+        // Admin provisioning
+        (isStaff() && getStaffData().permissions.get('manage_staff', false) == true)
+      );
+      
+      allow update: if isStaff() && (
+        // Self-update for metadata
+        (request.auth.uid == staffId && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'email'])) ||
+        // Admin update for roles/permissions
+        (getStaffData().permissions.get('manage_staff', false) == true)
+      );
+      
+      allow delete: if isStaff() && getStaffData().permissions.get('manage_staff', false) == true;
     }
 
-    // --- Collection Routes ---
-
+    // --- Collection: duty_logs ---
     match /duty_logs/{logId} {
-      allow list: if isStaff(); 
-      allow get: if isStaff();
+      // Read access based on permissions or ownership
+      allow read: if isStaff() && (
+        getStaffData().permissions.get('view_all_cases', false) == true ||
+        resource.data.get('department', null) == getStaffData().get('department', null) ||
+        resource.data.owner_id == request.auth.uid
+      );
+      
+      // Create access
       allow create: if isStaff() && 
-                      isValidId(logId) && 
-                      isValidDutyLog(incoming()) &&
-                      incoming().created_at == request.time;
-      allow update: if isStaff() && 
-                      isValidDutyLog(incoming()) && (
-                        // Protect immutable fields
-                        incoming().case_id == existing().case_id &&
-                        incoming().created_at == existing().created_at &&
-                        // Action based updates
-                        (
-                          // Status transition
-                          incoming().diff(existing()).affectedKeys().hasAny(['status', 'action_taken', 'resolved_at']) ||
-                          // Detail refinement
-                          incoming().diff(existing()).affectedKeys().hasAny(['description', 'priority', 'room_number', 'guest_name', 'attachments', 'owner', 'follow_up_required'])
-                        )
-                      );
-      allow delete: if false;
+                    getStaffData().permissions.get('create_cases', false) == true && 
+                    request.resource.data.owner_id == request.auth.uid &&
+                    request.resource.data.created_at == request.time;
+      
+      // Update access based on role-tiered logic
+      allow update: if isStaff() && (
+        // Tier 1: Admin edit all
+        getStaffData().permissions.get('edit_all_cases', false) == true ||
+        // Tier 2: Owner edit own
+        (getStaffData().permissions.get('edit_own_cases', false) == true && resource.data.owner_id == request.auth.uid) ||
+        // Tier 3: Restricted status resolution
+        (getStaffData().permissions.get('resolve_cases', false) == true && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'resolved_at']))
+      );
+      
+      allow delete: if isStaff() && getStaffData().permissions.get('manage_settings', false) == true;
     }
 
-    match /handover_notes/{noteId} {
-      allow list, get: if isStaff();
-      allow create: if isStaff() && 
-                      isValidId(noteId) &&
-                      isValidHandoverNote(incoming());
-      allow update, delete: if false;
+    // --- Collection: audit_logs ---
+    match /audit_logs/{auditId} {
+      // Only authorized personnel can view the audit trail
+      allow list, get: if isStaff() && getStaffData().permissions.get('view_audit_logs', false) == true;
+      
+      // Any staff member can create an audit log (e.g., when they modify a record)
+      allow create: if isStaff();
+      
+      allow update, delete: if false; // Immutable ledger
     }
 
+    // --- Collection: checklists ---
     match /checklists/{taskId} {
-      allow list, get: if isStaff();
-      allow create: if isStaff() && isValidId(taskId) && isValidChecklistTask(incoming());
-      allow update: if isStaff() && 
-                      isValidChecklistTask(incoming()) &&
-                      incoming().diff(existing()).affectedKeys().hasAny(['completed', 'completed_by', 'completed_at', 'task_name', 'category', 'shift', 'required']);
-      allow delete: if false;
+      allow read: if isStaff();
+      
+      allow update: if isStaff() && (
+        getStaffData().permissions.get('complete_checklist', false) == true ||
+        getStaffData().permissions.get('manage_checklists', false) == true ||
+        getStaffData().permissions.get('manage_settings', false) == true
+      );
+      
+      allow create, delete: if isStaff() && (
+        getStaffData().permissions.get('manage_checklists', false) == true ||
+        getStaffData().permissions.get('manage_settings', false) == true
+      );
     }
 
-    match /staff/{staffId} {
-      allow list, get: if isStaff();
-      allow create: if isSignedIn() && isValidId(staffId) && isValidStaff(incoming());
-      allow update: if false;
-      allow delete: if false;
+    // --- Collection: handover_notes ---
+    match /handover_notes/{noteId} {
+      allow read: if isStaff();
+      
+      allow create: if isStaff() && getStaffData().permissions.get('submit_handover', false) == true;
     }
   }
 }

@@ -8,16 +8,21 @@ import {
   User as UserIcon,
   MessageSquare,
   Paperclip,
-  Image as ImageIcon,
-  File as FileIcon,
+  ImageIcon,
+  FileIcon,
   Trash2,
   ExternalLink,
-  Download
+  Download,
+  X,
+  Lock,
+  CheckCircle2
 } from 'lucide-react';
 import { db, auth } from '../lib/firebase';
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, updateDoc, doc } from 'firebase/firestore';
+import { recordAuditLog } from '../lib/auditService';
+import { useAuth } from '../context/AuthContext';
 import { cn, formatTime, formatDate } from '../lib/utils';
-import { DutyLog, Priority, Status, Shift } from '../types';
+import { DutyLog, Priority, Status, Shift, Department } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
 
 const PRIORITY_COLORS = {
@@ -34,11 +39,105 @@ const STATUS_INDICATORS = {
   Resolved: 'bg-green-500',
 };
 
+const Timer = ({ createdAt }: { createdAt: any }) => {
+  const [timeLeft, setTimeLeft] = React.useState<number>(1800); // 30 mins
+  const [isUrgent, setIsUrgent] = React.useState(false);
+
+  React.useEffect(() => {
+    const interval = setInterval(() => {
+      const start = createdAt?.toDate?.() || new Date(createdAt);
+      const diff = Math.floor((new Date().getTime() - start.getTime()) / 1000);
+      const remaining = Math.max(0, 1800 - diff);
+      setTimeLeft(remaining);
+      setIsUrgent(remaining <= 300); // 5 mins
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [createdAt]);
+
+  const mins = Math.floor(timeLeft / 60);
+  const secs = timeLeft % 60;
+
+  if (timeLeft === 0) return <span className="text-critical font-black">OVERDUE</span>;
+
+  return (
+    <div className={cn(
+      "flex flex-col items-end",
+      isUrgent ? "text-critical animate-pulse" : "opacity-50"
+    )}>
+      <p className="text-[10px] font-black tracking-widest uppercase">Target Time</p>
+      <p className="text-sm font-mono font-bold leading-none mt-1">
+        {mins}:{secs.toString().padStart(2, '0')}
+      </p>
+    </div>
+  );
+};
+
 export function DutyLogList({ logs }: { logs: DutyLog[] }) {
+  const { profile, hasPermission, user } = useAuth();
   const [filterStatus, setFilterStatus] = useState<Status | 'All'>('All');
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedLog, setSelectedLog] = useState<DutyLog | null>(null);
+  const [activeMenu, setActiveMenu] = useState<string | null>(null);
+
+  const handleDeleteLog = async (logId: string) => {
+    if (!window.confirm("Are you sure you want to permanently delete this operational record? This action cannot be undone.")) return;
+    try {
+      await updateDoc(doc(db, 'duty_logs', logId), { is_deleted: true }); // Prefer soft delete
+      await recordAuditLog(logId, 'duty_logs', 'delete', [{ field: 'status', old_value: 'Active', new_value: 'Deleted' }]);
+    } catch (err) {
+      console.error("Error deleting log:", err);
+    }
+  };
+
+  const handleUpdateLog = async (logId: string, updates: Partial<DutyLog>) => {
+    const log = logs.find(l => l.id === logId);
+    if (!log) return;
+
+    if (updates.status === 'Resolved' && !window.confirm("Marking this incident as resolved will finalize the record. Proceed?")) return;
+
+    // RBAC check
+    if (updates.status === 'Resolved' && !hasPermission('resolve_cases')) {
+      alert("Insufficient permissions to resolve incidents.");
+      return;
+    }
+
+    // RBAC: Check edit permission
+    const isOwner = log.owner_id === user?.uid;
+    const canEdit = hasPermission('edit_all_cases') || (hasPermission('edit_own_cases') && isOwner);
+    
+    // Exception: Resolve-only permission might allow status change even if general edit is restricted
+    const isOnlyStatusUpdate = Object.keys(updates).length === 1 && updates.status;
+    const canPerformAction = canEdit || (isOnlyStatusUpdate && hasPermission('resolve_cases'));
+
+    if (!canPerformAction) {
+      alert("Insufficient permissions to update this case.");
+      return;
+    }
+
+    const changes = Object.entries(updates).map(([field, new_value]) => ({
+      field,
+      old_value: (log as any)[field],
+      new_value
+    })).filter(c => c.old_value !== c.new_value);
+
+    try {
+      await updateDoc(doc(db, 'duty_logs', logId), updates);
+      if (changes.length > 0) {
+        await recordAuditLog(logId, 'duty_logs', 'update', changes);
+      }
+    } catch (err) {
+      console.error("Error updating log:", err);
+    }
+  };
 
   const filteredLogs = logs.filter(log => {
+    // Visibility Check
+    const isOwner = log.owner_id === user?.uid;
+    const sameDept = log.department === profile?.department;
+    const canView = hasPermission('view_all_cases') || (hasPermission('view_department_cases') && sameDept) || isOwner;
+    
+    if (!canView) return false;
+
     const matchesStatus = filterStatus === 'All' || log.status === filterStatus;
     const matchesSearch = log.room_number.toLowerCase().includes(searchQuery.toLowerCase()) || 
                           log.guest_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -51,7 +150,7 @@ export function DutyLogList({ logs }: { logs: DutyLog[] }) {
     <div className="p-10 space-y-8 max-w-7xl mx-auto">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
-          <h2 className="text-3xl font-bold tracking-tight text-white">Duty Log</h2>
+          <h2 className="text-3xl font-bold tracking-tight text-white font-display">Duty Log</h2>
           <p className="text-[11px] text-text-muted font-bold uppercase tracking-[0.2em] mt-1">Operational Incident Records</p>
         </div>
         <div className="flex items-center gap-4">
@@ -60,7 +159,7 @@ export function DutyLogList({ logs }: { logs: DutyLog[] }) {
             <input 
               type="text" 
               placeholder="Search registry..." 
-              className="bg-white/5 border border-glass-border rounded-xl pl-11 pr-4 py-2.5 text-sm focus:outline-none focus:border-white/20 transition-all w-72 backdrop-blur-md"
+              className="bg-white/5 border border-glass-border rounded-xl pl-11 pr-4 py-2.5 text-sm focus:outline-none focus:border-white/20 transition-all w-72 backdrop-blur-md text-white"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
@@ -85,89 +184,315 @@ export function DutyLogList({ logs }: { logs: DutyLog[] }) {
             <thead>
               <tr className="border-b border-glass-border bg-white/[0.02]">
                 <th className="px-8 py-5 text-[10px] uppercase font-black tracking-[0.25em] text-text-muted">Case ID</th>
-                <th className="px-8 py-5 text-[10px] uppercase font-black tracking-[0.25em] text-text-muted">Description</th>
-                <th className="px-8 py-5 text-[10px] uppercase font-black tracking-[0.25em] text-text-muted">Room</th>
-                <th className="px-8 py-5 text-[10px] uppercase font-black tracking-[0.25em] text-text-muted">Priority</th>
-                <th className="px-8 py-5 text-[10px] uppercase font-black tracking-[0.25em] text-text-muted">Owner</th>
-                <th className="px-8 py-5 text-[10px] uppercase font-black tracking-[0.25em] text-text-muted">Status</th>
+                <th className="px-8 py-5 text-[10px] uppercase font-black tracking-[0.25em] text-text-muted">Incident Details</th>
+                <th className="px-8 py-5 text-[10px] uppercase font-black tracking-[0.25em] text-text-muted">Location</th>
+                <th className="px-8 py-5 text-[10px] uppercase font-black tracking-[0.25em] text-text-muted">Handover</th>
+                <th className="px-8 py-5 text-[10px] uppercase font-black tracking-[0.25em] text-text-muted">Condition</th>
                 <th className="px-8 py-5 text-[10px] uppercase font-black tracking-[0.25em] text-text-muted"></th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-white/[0.03]">
-              {filteredLogs.map((log) => (
-                <tr key={log.id} className="hover:bg-white/[0.03] transition-all group cursor-pointer">
-                  <td className="px-8 py-5 whitespace-nowrap">
-                    <span className="text-[12px] font-bold text-white/50 group-hover:text-white transition-colors">#{log.case_id}</span>
-                  </td>
-                  <td className="px-8 py-5">
-                    <div className="text-sm font-semibold text-white mb-0.5">{log.issue_type}</div>
-                    <div className="text-xs text-text-muted line-clamp-1 max-w-xs">{log.description}</div>
-                    {log.attachments && log.attachments.length > 0 && (
-                      <div className="flex flex-wrap gap-2 mt-2">
-                        {log.attachments.map((att, i) => (
-                          <div key={i} className="group/att relative">
-                            {att.type.startsWith('image/') ? (
-                              <div className="w-10 h-10 rounded-lg overflow-hidden border border-glass-border">
-                                <img src={att.url} alt={att.name} className="w-full h-full object-cover" />
-                                <a href={att.url} download={att.name} className="absolute inset-0 bg-black/60 opacity-0 group-hover/att:opacity-100 flex items-center justify-center transition-opacity">
-                                  <Download className="w-3 h-3 text-white" />
-                                </a>
-                              </div>
-                            ) : (
-                              <a href={att.url} download={att.name} className="flex items-center gap-2 px-2 py-1 bg-white/5 border border-glass-border rounded-lg hover:bg-white/10 transition-colors">
-                                <FileIcon className="w-3 h-3 text-text-muted" />
-                                <span className="text-[9px] font-bold text-white/50 truncate max-w-[80px]">{att.name}</span>
-                              </a>
-                            )}
+            <tbody className="divide-y divide-glass-border">
+              {filteredLogs.map((log) => {
+                const isOwner = log.owner_id === user?.uid;
+                const canModify = hasPermission('edit_all_cases') || (hasPermission('edit_own_cases') && isOwner) || hasPermission('resolve_cases');
+
+                return (
+                  <tr 
+                    key={log.id} 
+                    onClick={() => setSelectedLog(log)}
+                    className="hover:bg-white/[0.03] transition-all group cursor-pointer relative"
+                  >
+                    <td className="px-8 py-5 whitespace-nowrap">
+                      <span className="text-[12px] font-bold opacity-40 group-hover:opacity-100 transition-opacity">#{log.case_id}</span>
+                    </td>
+                    <td className="px-8 py-5">
+                      <div className="text-sm font-semibold mb-0.5">{log.issue_type}</div>
+                      <div className="text-xs text-text-muted line-clamp-1 max-w-xs">{log.description}</div>
+                    </td>
+                    <td className="px-8 py-5 whitespace-nowrap">
+                      <div className="text-sm font-bold opacity-80">Room {log.room_number}</div>
+                      <div className="text-[10px] text-text-muted font-bold uppercase tracking-wider">{log.guest_name}</div>
+                    </td>
+                    <td className="px-8 py-5 whitespace-nowrap">
+                      <div className="flex items-center gap-3">
+                        <div className="w-7 h-7 rounded-lg bg-glass border border-glass-border flex items-center justify-center">
+                          <UserIcon className="w-3.5 h-3.5 text-text-muted" />
+                        </div>
+                        <div className="text-left">
+                          <p className="text-xs font-semibold">{log.owner.split(' ')[0]}</p>
+                          <p className="text-[9px] text-text-muted uppercase font-black">{log.shift}</p>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-8 py-5 whitespace-nowrap border-l border-glass-border/50">
+                      <div className="flex items-center justify-between gap-8">
+                        <div className="flex flex-col gap-1">
+                          <div className="flex items-center gap-2">
+                             <div className={cn("w-1.5 h-1.5 rounded-full", log.status === 'Resolved' ? 'bg-low' : 'bg-high')} />
+                             <span className="text-[11px] font-black uppercase tracking-wider">{log.status}</span>
                           </div>
-                        ))}
+                          {log.status !== 'Resolved' && <Timer createdAt={log.created_at} />}
+                        </div>
                       </div>
-                    )}
-                  </td>
-                  <td className="px-8 py-5 whitespace-nowrap">
-                    <div className="text-sm font-bold text-white/90">R-{log.room_number}</div>
-                    <div className="text-[10px] text-text-muted font-bold uppercase tracking-wider">{log.guest_name}</div>
-                  </td>
-                  <td className="px-8 py-5 whitespace-nowrap">
-                    <span className={cn(
-                      "px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-wider",
-                      log.priority === 'Critical' ? "bg-critical/20 text-critical" :
-                      log.priority === 'High' ? "bg-high/20 text-high" :
-                      log.priority === 'Medium' ? "bg-medium/20 text-medium" : "bg-low/20 text-low"
-                    )}>
-                      {log.priority}
-                    </span>
-                  </td>
-                  <td className="px-8 py-5 whitespace-nowrap">
-                    <div className="flex items-center gap-3">
-                      <div className="w-7 h-7 rounded-lg bg-white/5 border border-glass-border flex items-center justify-center">
-                        <UserIcon className="w-3.5 h-3.5 text-text-muted" />
-                      </div>
-                      <span className="text-xs font-semibold text-white/70">{log.owner.split(' ')[0]}</span>
-                    </div>
-                  </td>
-                  <td className="px-8 py-5 whitespace-nowrap">
-                    <div className="flex items-center gap-2.5">
-                      <div className={cn("w-1.5 h-1.5 rounded-full shadow-[0_0_8px_currentColor]", log.status === 'Open' ? 'text-critical' : log.status === 'Resolved' ? 'text-low' : 'text-medium', STATUS_INDICATORS[log.status])} />
-                      <span className="text-[11px] font-black uppercase tracking-wider text-white/80">{log.status}</span>
-                    </div>
-                  </td>
-                  <td className="px-8 py-5 text-right">
-                    <button className="text-text-muted hover:text-white transition-colors">
-                      <MoreHorizontal className="w-5 h-5" />
-                    </button>
-                  </td>
-                </tr>
-              ))}
+                    </td>
+                    <td className="px-8 py-5 text-right relative">
+                      {canModify && (
+                        <button 
+                          onClick={(e) => { e.stopPropagation(); setActiveMenu(activeMenu === log.id ? null : log.id); }}
+                          className="p-2 -mr-2 text-text-muted hover:text-inherit transition-colors rounded-lg hover:bg-glass"
+                        >
+                          <MoreHorizontal className="w-5 h-5" />
+                        </button>
+                      )}
+                      
+                      <AnimatePresence>
+                        {activeMenu === log.id && (
+                          <>
+                            <div className="fixed inset-0 z-10" onClick={(e) => { e.stopPropagation(); setActiveMenu(null); }} />
+                            <motion.div 
+                              initial={{ opacity: 0, scale: 0.95, y: -10 }}
+                              animate={{ opacity: 1, scale: 1, y: 0 }}
+                              exit={{ opacity: 0, scale: 0.95, y: -10 }}
+                              onClick={(e) => e.stopPropagation()}
+                              className="absolute right-8 top-12 w-48 bg-bg-dark/95 backdrop-blur-3xl border border-glass-border rounded-xl shadow-2xl z-20 py-2"
+                            >
+                               <div className="px-4 py-2 border-b border-glass-border mb-2">
+                                 <p className="text-[9px] font-black uppercase text-text-muted tracking-widest">Case Actions</p>
+                               </div>
+                               
+                               <button 
+                                 onClick={() => { setSelectedLog(log); setActiveMenu(null); }}
+                                 className="w-full px-4 py-2 text-xs font-bold flex items-center gap-3 hover:bg-white/5 transition-colors"
+                               >
+                                 <ExternalLink className="w-4 h-4 text-text-muted" />
+                                 View Details
+                               </button>
+
+                               {log.status !== 'Resolved' && hasPermission('resolve_cases') && (
+                                 <button 
+                                   onClick={() => { handleUpdateLog(log.id, { status: 'Resolved' }); setActiveMenu(null); }}
+                                   className="w-full px-4 py-2 text-xs font-bold flex items-center gap-3 hover:bg-low/10 text-low transition-colors"
+                                 >
+                                   <CheckCircle2 className="w-4 h-4" />
+                                   Resolve Incident
+                                 </button>
+                               )}
+
+                               {hasPermission('manage_staff') && (
+                                 <button 
+                                   onClick={() => { handleDeleteLog(log.id); setActiveMenu(null); }}
+                                   className="w-full px-4 py-2 text-xs font-bold flex items-center gap-3 hover:bg-critical/10 text-critical transition-colors"
+                                 >
+                                   <Trash2 className="w-4 h-4" />
+                                   Delete Record
+                                 </button>
+                               )}
+                            </motion.div>
+                          </>
+                        )}
+                      </AnimatePresence>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
       </div>
+      
+      <AnimatePresence>
+        {selectedLog && (
+          <LogDetailModal 
+            log={selectedLog} 
+            onClose={() => setSelectedLog(null)} 
+            onUpdate={(updates) => handleUpdateLog(selectedLog.id, updates)}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }
 
+export function LogDetailModal({ log, onClose, onUpdate }: { log: DutyLog, onClose: () => void, onUpdate: (updates: Partial<DutyLog>) => void }) {
+  const { hasPermission, user } = useAuth();
+  const [description, setDescription] = useState(log.description);
+  const [actionTaken, setActionTaken] = useState(log.action_taken || '');
+  const [followUpAction, setFollowUpAction] = useState(log.follow_up_action || '');
+  const [handoverTo, setHandoverTo] = useState(log.handover_to || '');
+  const [status, setStatus] = useState(log.status);
+
+  const isOwner = log.owner_id === user?.uid;
+  const canEdit = hasPermission('edit_all_cases') || (hasPermission('edit_own_cases') && isOwner);
+  const canResolve = hasPermission('resolve_cases');
+
+  return (
+    <>
+      <motion.div 
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        onClick={onClose}
+        className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100]"
+      />
+      <motion.div 
+        initial={{ opacity: 0, scale: 0.95, y: 20 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.95, y: 20 }}
+        className="fixed inset-0 m-auto w-full max-w-2xl h-fit max-h-[90vh] overflow-y-auto bg-bg-dark/60 backdrop-blur-3xl border border-glass-border rounded-[32px] z-[101] shadow-2xl p-10 space-y-8"
+      >
+        <div className="flex items-center justify-between">
+          <div className="space-y-1">
+            <h3 className="text-2xl font-bold tracking-tight">#{log.case_id} — {log.issue_type}</h3>
+            <p className="text-[10px] text-text-muted uppercase tracking-[0.25em] font-black">Location: Room {log.room_number} | {log.department || 'Unassigned'}</p>
+          </div>
+          <div className="flex items-center gap-4">
+             <div className={cn(
+                "px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest",
+                log.priority === 'Critical' ? "bg-critical/20 text-critical" : "bg-glass-border/50 text-text-muted"
+             )}>
+                {log.priority} Priority
+             </div>
+             <button onClick={onClose} className="p-2 text-text-muted hover:text-inherit"><X className="w-5 h-5" /></button>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-6 py-6 border-y border-glass-border">
+          <div className="space-y-1">
+            <p className="text-[9px] font-black uppercase text-text-muted tracking-widest">Guest Account</p>
+            <p className="text-sm font-bold">{log.guest_name}</p>
+          </div>
+          <div className="space-y-1">
+            <p className="text-[9px] font-black uppercase text-text-muted tracking-widest">Entry Metadata</p>
+            <p className="text-sm font-bold">{formatDate(log.created_at)}</p>
+          </div>
+          <div className="space-y-1">
+            <p className="text-[9px] font-black uppercase text-text-muted tracking-widest">Case Owner</p>
+            <div className="flex items-center gap-2">
+              <div className="w-5 h-5 rounded-full bg-glass flex items-center justify-center border border-glass-border">
+                <UserIcon className="w-3 h-3 text-text-muted" />
+              </div>
+              <p className="text-sm font-bold">{log.owner}</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="space-y-8">
+          <div className="space-y-2">
+            <label className="text-[10px] font-black uppercase text-text-muted tracking-widest pl-1">Incident Narrative</label>
+            <div className="p-5 rounded-2xl bg-glass border border-glass-border text-sm opacity-80 leading-loose shadow-inner">
+              {log.description}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-2">
+              <label className="text-[10px] font-black uppercase text-text-muted tracking-widest pl-1">Actions Taken</label>
+              <textarea 
+                rows={3}
+                readOnly={!canEdit && !canResolve}
+                className={cn(
+                  "w-full bg-glass border border-glass-border rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-glass-border/40 transition-all placeholder-text-muted/30 resize-none",
+                  !(canEdit || canResolve) && "opacity-50"
+                )}
+                placeholder="What was done to address this..."
+                value={actionTaken}
+                onChange={e => setActionTaken(e.target.value)}
+                onBlur={() => (canEdit || canResolve) && onUpdate({ action_taken: actionTaken })}
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-[10px] font-black uppercase text-text-muted tracking-widest pl-1">Next Step / Follow-up</label>
+              <textarea 
+                rows={3}
+                readOnly={!canEdit && !canResolve}
+                className={cn(
+                  "w-full bg-glass border border-glass-border rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-glass-border/40 transition-all placeholder-text-muted/30 resize-none",
+                  !(canEdit || canResolve) && "opacity-50"
+                )}
+                placeholder="What needs to happen next..."
+                value={followUpAction}
+                onChange={e => setFollowUpAction(e.target.value)}
+                onBlur={() => (canEdit || canResolve) && onUpdate({ follow_up_action: followUpAction })}
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-2">
+              <label className="text-[10px] font-black uppercase text-text-muted tracking-widest pl-1">Handover Ownership</label>
+              <input 
+                type="text"
+                readOnly={!canEdit}
+                className={cn(
+                  "w-full bg-glass border border-glass-border rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-glass-border/40 transition-all placeholder-text-muted/30",
+                  !canEdit && "opacity-50"
+                )}
+                placeholder="Assign to next person/shift..."
+                value={handoverTo}
+                onChange={e => setHandoverTo(e.target.value)}
+                onBlur={() => canEdit && onUpdate({ handover_to: handoverTo })}
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-[10px] font-black uppercase text-text-muted tracking-widest pl-1">Condition</label>
+              <div className="flex gap-2">
+                {(['Open', 'In Progress', 'Pending', 'Resolved'] as Status[]).map((st) => {
+                  const canSet = st === 'Resolved' ? canResolve : canEdit;
+                  return (
+                    <button
+                      key={st}
+                      disabled={!canSet}
+                      onClick={() => { setStatus(st); onUpdate({ status: st }); }}
+                      className={cn(
+                        "flex-1 py-3 text-[9px] font-black uppercase rounded-lg border transition-all relative",
+                        status === st 
+                          ? "bg-inherit border-inherit font-black shadow-sm" 
+                          : "border-glass-border text-text-muted hover:border-glass-border/40",
+                        !canSet && "opacity-30 cursor-not-allowed border-transparent"
+                      )}
+                    >
+                      {st === 'In Progress' ? 'Active' : st}
+                      {!canSet && <Lock className="absolute top-1 right-1 w-2 h-2" />}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex gap-4 pt-4">
+          <button 
+            onClick={onClose}
+            className="flex-1 py-4 bg-inherit border border-glass-border rounded-xl text-[11px] font-black uppercase tracking-widest shadow-xl hover:bg-glass transition-colors"
+          >
+            Close Operational View
+          </button>
+          {status !== 'Resolved' && canResolve && (
+            <button 
+              onClick={() => { onUpdate({ status: 'Resolved' }); onClose(); }}
+              className="flex-1 py-4 bg-low text-white rounded-xl text-[11px] font-black uppercase tracking-widest shadow-xl shadow-low/20"
+            >
+              Mark as Resolved
+            </button>
+          )}
+        </div>
+      </motion.div>
+    </>
+  );
+}
+
+const ISSUE_TYPE_DEPT: Record<string, Department> = {
+  'Maintenance': 'Maintenance',
+  'Housekeeping': 'Housekeeping',
+  'Front Office': 'Front Office',
+  'Guest Request': 'Front Office',
+  'Security': 'Security',
+  'F&B': 'Front Office' // Simplified
+};
+
 export function LogEntryModal({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) {
+  const { user, profile } = useAuth();
   const [formData, setFormData] = useState({
     room_number: '',
     guest_name: '',
@@ -182,7 +507,7 @@ export function LogEntryModal({ isOpen, onClose }: { isOpen: boolean, onClose: (
     const files = e.target.files;
     if (!files) return;
 
-    Array.from(files).forEach(file => {
+    Array.from(files).forEach((file: File) => {
       const reader = new FileReader();
       reader.onload = (event) => {
         setAttachments(prev => [...prev, {
@@ -204,12 +529,16 @@ export function LogEntryModal({ isOpen, onClose }: { isOpen: boolean, onClose: (
     e.preventDefault();
     try {
       const case_id = `RLY-${Math.random().toString(36).substring(2, 7).toUpperCase()}`;
+      const department = ISSUE_TYPE_DEPT[formData.issue_type] || profile?.department || 'Front Office';
+
       await addDoc(collection(db, 'duty_logs'), {
         ...formData,
         case_id,
+        department,
         created_at: serverTimestamp(),
         status: 'Open',
-        owner: auth.currentUser?.displayName || 'Unknown',
+        owner: profile?.name || user?.displayName || 'Unknown',
+        owner_id: user?.uid,
         follow_up_required: false,
         action_taken: '',
         attachments: attachments
@@ -249,7 +578,7 @@ export function LogEntryModal({ isOpen, onClose }: { isOpen: boolean, onClose: (
             <div className="p-10 space-y-8">
               <div className="space-y-2">
                 <h3 className="text-2xl font-bold tracking-tight text-white">Create Duty Log</h3>
-                <p className="text-[11px] text-text-muted uppercase tracking-[0.25em] font-black">Secure Entry Module</p>
+                <p className="text-[11px] text-text-muted uppercase tracking-[0.25em] font-black">Departmental Entry Module</p>
               </div>
 
               <form onSubmit={handleSubmit} className="space-y-6">
@@ -413,3 +742,4 @@ export function LogEntryModal({ isOpen, onClose }: { isOpen: boolean, onClose: (
     </AnimatePresence>
   );
 }
+

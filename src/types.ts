@@ -20,7 +20,11 @@ export interface DutyLog {
   priority: Priority;
   description: string;
   action_taken: string;
+  follow_up_action?: string;
+  handover_to?: string;
   owner: string;
+  owner_id?: string;
+  department?: Department;
   status: Status;
   follow_up_required: boolean;
   resolved_at?: any;
@@ -34,6 +38,7 @@ export interface HandoverNote {
   to_shift: Shift;
   notes: string;
   unresolved_case_ids: string[];
+  department?: Department;
 }
 
 export interface ShiftChecklist {
@@ -45,11 +50,48 @@ export interface ShiftChecklist {
   completed: boolean;
   completed_by?: string;
   completed_at?: any;
+  department?: Department;
+}
+
+export type PlatformRole = 'Admin' | 'Duty Manager' | 'Department Lead' | 'Staff' | 'Viewer';
+export type Department = 'Front Office' | 'Housekeeping' | 'Maintenance' | 'Security' | 'Management';
+
+export interface PermissionFlags {
+  view_all_cases: boolean;
+  view_department_cases: boolean;
+  create_cases: boolean;
+  edit_own_cases: boolean;
+  edit_all_cases: boolean;
+  resolve_cases: boolean;
+  assign_cases: boolean;
+  submit_handover: boolean;
+  complete_checklist: boolean;
+  manage_staff: boolean;
+  manage_checklists: boolean;
+  view_audit_logs: boolean;
+  manage_settings: boolean;
 }
 
 export interface Staff {
   id: string;
   name: string;
-  role: string;
+  role: PlatformRole;
+  department: Department;
   email: string;
+  permissions: PermissionFlags;
+  created_at: any;
+}
+
+export interface AuditLog {
+  id: string;
+  target_id: string;
+  collection: string;
+  changed_by: string;
+  timestamp: any;
+  changes: {
+    field: string;
+    old_value: any;
+    new_value: any;
+  }[];
+  action: 'create' | 'update' | 'delete';
 }

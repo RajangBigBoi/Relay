@@ -51,14 +51,76 @@
     },
     "StaffMember": {
       "title": "Staff Member",
-      "description": "Staff profile and role.",
+      "description": "Authorized staff profile with granular RBAC permissions.",
       "type": "object",
       "properties": {
         "name": { "type": "string" },
-        "role": { "type": "string" },
-        "email": { "type": "string", "format": "email" }
+        "role": { "type": "string", "enum": ["Admin", "Duty Manager", "Department Lead", "Staff", "Viewer"] },
+        "department": { "type": "string", "enum": ["Front Office", "Housekeeping", "Maintenance", "Security", "Management"] },
+        "email": { "type": "string", "format": "email" },
+        "permissions": {
+          "type": "object",
+          "properties": {
+            "view_all_cases": { "type": "boolean" },
+            "view_department_cases": { "type": "boolean" },
+            "create_cases": { "type": "boolean" },
+            "edit_own_cases": { "type": "boolean" },
+            "edit_all_cases": { "type": "boolean" },
+            "resolve_cases": { "type": "boolean" },
+            "assign_cases": { "type": "boolean" },
+            "submit_handover": { "type": "boolean" },
+            "complete_checklist": { "type": "boolean" },
+            "manage_staff": { "type": "boolean" },
+            "view_audit_logs": { "type": "boolean" },
+            "manage_settings": { "type": "boolean" }
+          }
+        },
+        "created_at": { "type": "string", "format": "date-time" }
       },
-      "required": ["name", "role", "email"]
+      "required": ["name", "role", "department", "email", "permissions"]
+    },
+    "DutyLog": {
+      "title": "Duty Log",
+      "description": "Incident record.",
+      "type": "object",
+      "properties": {
+        "case_id": { "type": "string" },
+        "room_number": { "type": "string" },
+        "guest_name": { "type": "string" },
+        "issue_type": { "type": "string" },
+        "department": { "type": "string" },
+        "priority": { "type": "string" },
+        "description": { "type": "string" },
+        "action_taken": { "type": "string" },
+        "owner": { "type": "string" },
+        "owner_id": { "type": "string" },
+        "status": { "type": "string" },
+        "created_at": { "type": "string" }
+      }
+    },
+    "AuditLog": {
+      "title": "Audit Log",
+      "description": "Records of critical changes for accountability.",
+      "type": "object",
+      "properties": {
+        "target_id": { "type": "string" },
+        "collection": { "type": "string" },
+        "changed_by": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "action": { "type": "string", "enum": ["create", "update", "delete"] },
+        "changes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "field": { "type": "string" },
+              "old_value": { "type": "any" },
+              "new_value": { "type": "any" }
+            }
+          }
+        }
+      },
+      "required": ["target_id", "collection", "changed_by", "timestamp", "action"]
     }
   },
   "firestore": {
@@ -74,9 +136,13 @@
       "schema": "ShiftChecklist",
       "description": "Daily operational tasks"
     },
-    "staff": {
+    "staffMembers": {
       "schema": "StaffMember",
-      "description": "Staff directory"
+      "description": "Authorized RBAC staff directory"
+    },
+    "audit_logs": {
+      "schema": "AuditLog",
+      "description": "Audit trail for system operations"
     }
   }
 }
