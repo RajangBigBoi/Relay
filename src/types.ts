@@ -54,7 +54,7 @@ export interface ShiftChecklist {
 }
 
 export type PlatformRole = 'Admin' | 'Duty Manager' | 'Department Lead' | 'Staff' | 'Viewer';
-export type Department = 'Front Office' | 'Housekeeping' | 'Maintenance' | 'Security' | 'Management';
+export type Department = 'Front Office' | 'Housekeeping' | 'Maintenance' | 'Security' | 'Management' | 'Food & Beverage';
 
 export interface PermissionFlags {
   view_all_cases: boolean;
@@ -79,6 +79,7 @@ export interface Staff {
   department: Department;
   email: string;
   permissions: PermissionFlags;
+  two_factor_enabled?: boolean;
   created_at: any;
 }
 

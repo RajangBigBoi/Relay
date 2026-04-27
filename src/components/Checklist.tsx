@@ -91,12 +91,12 @@ export function Checklist() {
   const shiftTasks = tasks.filter(t => t.shift === activeShift);
 
   return (
-    <div className="p-10 space-y-10 max-w-4xl mx-auto">
+    <div className="p-10 space-y-10 max-w-4xl mx-auto text-main">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-3xl font-bold tracking-tight text-white font-display">Shift Checklist</h2>
+          <h2 className="text-3xl font-bold tracking-tight text-main font-display">Shift Checklist</h2>
           <p className="text-[11px] text-text-muted uppercase tracking-[0.2em] font-black mt-1">
-            {profile?.role === 'Admin' ? 'Global Verification Registry' : `${profile?.department} Operational Compliance`}
+            {profile?.role === 'Admin' ? 'Global Checklist Overview' : `${profile?.department} Daily Checklist`}
           </p>
         </div>
         <div className="flex items-center gap-4">

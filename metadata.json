@@ -1,6 +1,6 @@
 {
   "name": "Relay",
-  "description": "Premium Front Desk Operations System for hotels, focusing on shift workflows, issue tracking, and operational visibility.",
+  "description": "Hotel operations, handovers, and incident tracking made simple. Built for front office teams, duty managers, and hotel staff to synchronize daily tasks and high-priority logistics.",
   "requestFramePermissions": [],
   "majorCapabilities": []
 }

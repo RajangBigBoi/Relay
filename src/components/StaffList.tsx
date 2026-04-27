@@ -226,19 +226,19 @@ export function StaffList() {
   );
 
   return (
-    <div className="p-10 space-y-10 max-w-6xl mx-auto min-h-screen">
+    <div className="p-10 space-y-10 max-w-6xl mx-auto min-h-screen text-main">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
-          <h2 className="text-3xl font-bold tracking-tight text-white font-display">Personnel Registry</h2>
-          <p className="text-[11px] text-text-muted uppercase tracking-[0.2em] font-black mt-1">Authorized Operational Staff</p>
+          <h2 className="text-3xl font-bold tracking-tight text-main font-display">Staff List</h2>
+          <p className="text-[11px] text-text-muted uppercase tracking-[0.2em] font-black mt-1">Hotel Team Members</p>
         </div>
         <div className="flex items-center gap-4">
           <div className="relative">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
             <input 
               type="text" 
-              placeholder="Search personnel..." 
-              className="bg-white/5 border border-glass-border rounded-xl pl-11 pr-4 py-2.5 text-sm focus:outline-none focus:border-white/20 transition-all w-64 backdrop-blur-md text-white"
+              placeholder="Search staff..." 
+              className="bg-glass border border-glass-border rounded-xl pl-11 pr-4 py-2.5 text-sm focus:outline-none focus:border-glass-border/40 transition-all w-64 text-main"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
@@ -246,7 +246,7 @@ export function StaffList() {
           {hasPermission('manage_staff') && (
             <button 
               onClick={() => { setIsAddModalOpen(true); setFormData({ name: '', role: 'Staff', department: 'Front Office', email: '', uid: '' }); }}
-              className="bg-white text-black px-6 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-widest hover:bg-neutral-200 transition-all shadow-xl shadow-white/5 flex items-center gap-2"
+              className="bg-main text-bg-dark px-6 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-widest hover:scale-105 transition-all shadow-xl flex items-center gap-2"
             >
               <UserPlus className="w-4 h-4" />
               Add Staff

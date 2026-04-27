@@ -47,10 +47,10 @@ export function AuditLogViewer() {
           <div className="w-20 h-20 bg-critical/10 rounded-full flex items-center justify-center mx-auto border border-critical/20">
             <Database className="w-10 h-10 text-critical" />
           </div>
-          <h2 className="text-2xl font-bold text-white tracking-tight">Access Restricted</h2>
+          <h2 className="text-2xl font-bold text-main tracking-tight">Access Restricted</h2>
           <p className="text-text-muted text-sm leading-relaxed">
-            Security audit logs are restricted to Administrative personnel. 
-            Contact your platform administrator if you require access to the ledger.
+            System logs are restricted to Administrative personnel. 
+            Contact your manager if you require access to this history.
           </p>
         </div>
       </div>
@@ -68,8 +68,8 @@ export function AuditLogViewer() {
     <div className="p-10 space-y-10 max-w-6xl mx-auto">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-3xl font-bold tracking-tight text-white font-display">System Audit Logs</h2>
-          <p className="text-[11px] text-text-muted uppercase tracking-[0.2em] font-black mt-1">Immutable Security Ledger</p>
+          <h2 className="text-3xl font-bold tracking-tight text-main font-display">System Logs</h2>
+          <p className="text-[11px] text-text-muted uppercase tracking-[0.2em] font-black mt-1">Operational History</p>
         </div>
         <div className="flex items-center gap-4">
           <div className="relative">
@@ -77,7 +77,7 @@ export function AuditLogViewer() {
             <input 
               type="text" 
               placeholder="Search by ID or User..." 
-              className="bg-white/5 border border-glass-border rounded-xl pl-11 pr-4 py-2.5 text-xs focus:outline-none focus:border-white/20 transition-all w-64 text-white"
+              className="bg-glass border border-glass-border rounded-xl pl-11 pr-4 py-2.5 text-xs focus:outline-none focus:border-glass-border/40 transition-all w-64 text-main"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
@@ -85,7 +85,7 @@ export function AuditLogViewer() {
           <select 
             value={filterAction}
             onChange={(e) => setFilterAction(e.target.value)}
-            className="bg-white/5 border border-glass-border rounded-xl px-6 py-2.5 text-[10px] font-black uppercase tracking-widest text-white/70 appearance-none cursor-pointer focus:outline-none focus:border-white/20"
+            className="bg-glass border border-glass-border rounded-xl px-6 py-2.5 text-[10px] font-black uppercase tracking-widest text-text-muted appearance-none cursor-pointer focus:outline-none focus:border-glass-border/40"
           >
             <option value="All">All Actions</option>
             <option value="create">Created</option>
@@ -101,25 +101,25 @@ export function AuditLogViewer() {
             <thead className="bg-white/[0.02] border-b border-glass-border">
               <tr>
                 <th className="px-8 py-5 text-[10px] uppercase font-black tracking-widest text-text-muted">Timestamp</th>
-                <th className="px-8 py-5 text-[10px] uppercase font-black tracking-widest text-text-muted">Actor</th>
+                <th className="px-8 py-5 text-[10px] uppercase font-black tracking-widest text-text-muted">User</th>
                 <th className="px-8 py-5 text-[10px] uppercase font-black tracking-widest text-text-muted">Action</th>
-                <th className="px-8 py-5 text-[10px] uppercase font-black tracking-widest text-text-muted">Target Component</th>
-                <th className="px-8 py-5 text-[10px] uppercase font-black tracking-widest text-text-muted">Modification Detail</th>
+                <th className="px-8 py-5 text-[10px] uppercase font-black tracking-widest text-text-muted">Category</th>
+                <th className="px-8 py-5 text-[10px] uppercase font-black tracking-widest text-text-muted">Change Details</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-white/[0.03]">
               {filteredLogs.map((log) => (
                 <tr key={log.id} className="hover:bg-white/[0.02] transition-colors">
                   <td className="px-8 py-6 whitespace-nowrap">
-                    <div className="text-[11px] font-bold text-white/50">{formatDate(log.timestamp)}</div>
+                    <div className="text-[11px] font-bold text-main/50">{formatDate(log.timestamp)}</div>
                     <div className="text-[9px] text-text-muted font-black mt-0.5">{formatTime(log.timestamp)}</div>
                   </td>
                   <td className="px-8 py-6 whitespace-nowrap">
                     <div className="flex items-center gap-3">
-                      <div className="w-7 h-7 rounded-lg bg-white/5 border border-glass-border flex items-center justify-center">
+                      <div className="w-7 h-7 rounded-lg bg-glass border border-glass-border flex items-center justify-center">
                         <UserIcon className="w-3.5 h-3.5 text-text-muted" />
                       </div>
-                      <span className="text-xs font-bold text-white/80">{log.changed_by}</span>
+                      <span className="text-xs font-bold text-main/80">{log.changed_by}</span>
                     </div>
                   </td>
                   <td className="px-8 py-6 whitespace-nowrap">
@@ -134,24 +134,24 @@ export function AuditLogViewer() {
                   </td>
                   <td className="px-8 py-6 whitespace-nowrap">
                     <div className="flex flex-col">
-                      <span className="text-[11px] font-black uppercase text-white/40 tracking-wider mb-1">{log.collection}</span>
-                      <code className="text-[10px] font-mono text-text-muted bg-white/5 px-2 py-0.5 rounded border border-glass-border w-fit">{log.target_id}</code>
+                      <span className="text-[11px] font-black uppercase text-main/40 tracking-wider mb-1">{log.collection}</span>
+                      <code className="text-[10px] font-mono text-text-muted bg-glass px-2 py-0.5 rounded border border-glass-border w-fit">{log.target_id}</code>
                     </div>
                   </td>
                   <td className="px-8 py-6">
-                    <div className="space-y-2 max-w-sm">
+                    <div className="space-y-2 max-w-sm text-main">
                       {log.changes.map((change, idx) => (
                         <div key={idx} className="flex items-center gap-3 text-[10px]">
-                          <span className="font-black uppercase text-white/30 tracking-tighter min-w-[60px]">{change.field}</span>
+                          <span className="font-black uppercase text-text-muted tracking-tighter min-w-[60px]">{change.field}</span>
                           <div className="flex items-center gap-2 flex-1 min-w-0">
                             <span className="text-text-muted/40 truncate line-through italic">{String(change.old_value)}</span>
                             <ArrowRight className="w-2.5 h-2.5 text-text-muted/20 shrink-0" />
-                            <span className="text-white/80 font-semibold truncate bg-white/5 px-2 py-0.5 rounded">{String(change.new_value)}</span>
+                            <span className="text-main/80 font-semibold truncate bg-glass px-2 py-0.5 rounded">{String(change.new_value)}</span>
                           </div>
                         </div>
                       ))}
                       {log.action === 'create' && (
-                        <span className="text-[10px] text-low/60 italic">New record initialized in ledger</span>
+                        <span className="text-[10px] text-low/60 italic">New record created</span>
                       )}
                     </div>
                   </td>

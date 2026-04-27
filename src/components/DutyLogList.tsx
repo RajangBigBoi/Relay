@@ -150,7 +150,7 @@ export function DutyLogList({ logs }: { logs: DutyLog[] }) {
     <div className="p-10 space-y-8 max-w-7xl mx-auto">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
-          <h2 className="text-3xl font-bold tracking-tight text-white font-display">Duty Log</h2>
+          <h2 className="text-3xl font-bold tracking-tight text-main font-display">Incident Log</h2>
           <p className="text-[11px] text-text-muted font-bold uppercase tracking-[0.2em] mt-1">Operational Incident Records</p>
         </div>
         <div className="flex items-center gap-4">
@@ -158,8 +158,8 @@ export function DutyLogList({ logs }: { logs: DutyLog[] }) {
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
             <input 
               type="text" 
-              placeholder="Search registry..." 
-              className="bg-white/5 border border-glass-border rounded-xl pl-11 pr-4 py-2.5 text-sm focus:outline-none focus:border-white/20 transition-all w-72 backdrop-blur-md text-white"
+              placeholder="Search incidents..." 
+              className="bg-glass border border-glass-border rounded-xl pl-11 pr-4 py-2.5 text-sm focus:outline-none focus:border-glass-border/40 transition-all w-72 text-main"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
@@ -167,7 +167,7 @@ export function DutyLogList({ logs }: { logs: DutyLog[] }) {
           <select 
             value={filterStatus}
             onChange={(e) => setFilterStatus(e.target.value as any)}
-            className="bg-white/5 border border-glass-border rounded-xl px-6 py-2.5 text-[11px] font-bold uppercase tracking-widest focus:outline-none focus:border-white/20 transition-all cursor-pointer appearance-none min-w-[160px] text-white/70 backdrop-blur-md"
+            className="bg-glass border border-glass-border rounded-xl px-6 py-2.5 text-[11px] font-bold uppercase tracking-widest focus:outline-none focus:border-glass-border/40 transition-all cursor-pointer appearance-none min-w-[160px] text-text-muted"
           >
             <option value="All">All Items</option>
             <option value="Open">Status: Open</option>
@@ -186,8 +186,8 @@ export function DutyLogList({ logs }: { logs: DutyLog[] }) {
                 <th className="px-8 py-5 text-[10px] uppercase font-black tracking-[0.25em] text-text-muted">Case ID</th>
                 <th className="px-8 py-5 text-[10px] uppercase font-black tracking-[0.25em] text-text-muted">Incident Details</th>
                 <th className="px-8 py-5 text-[10px] uppercase font-black tracking-[0.25em] text-text-muted">Location</th>
-                <th className="px-8 py-5 text-[10px] uppercase font-black tracking-[0.25em] text-text-muted">Handover</th>
-                <th className="px-8 py-5 text-[10px] uppercase font-black tracking-[0.25em] text-text-muted">Condition</th>
+                <th className="px-8 py-5 text-[10px] uppercase font-black tracking-[0.25em] text-text-muted">Assigned To</th>
+                <th className="px-8 py-5 text-[10px] uppercase font-black tracking-[0.25em] text-text-muted">Status</th>
                 <th className="px-8 py-5 text-[10px] uppercase font-black tracking-[0.25em] text-text-muted"></th>
               </tr>
             </thead>
@@ -338,11 +338,11 @@ export function LogDetailModal({ log, onClose, onUpdate }: { log: DutyLog, onClo
         initial={{ opacity: 0, scale: 0.95, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95, y: 20 }}
-        className="fixed inset-0 m-auto w-full max-w-2xl h-fit max-h-[90vh] overflow-y-auto bg-bg-dark/60 backdrop-blur-3xl border border-glass-border rounded-[32px] z-[101] shadow-2xl p-10 space-y-8"
+        className="fixed inset-0 m-auto w-full max-w-2xl h-fit max-h-[90vh] overflow-y-auto bg-bg-dark/60 backdrop-blur-3xl border border-glass-border rounded-[32px] z-[101] shadow-2xl p-10 space-y-8 text-main"
       >
         <div className="flex items-center justify-between">
           <div className="space-y-1">
-            <h3 className="text-2xl font-bold tracking-tight">#{log.case_id} — {log.issue_type}</h3>
+            <h3 className="text-2xl font-bold tracking-tight text-main">#{log.case_id} — {log.issue_type}</h3>
             <p className="text-[10px] text-text-muted uppercase tracking-[0.25em] font-black">Location: Room {log.room_number} | {log.department || 'Unassigned'}</p>
           </div>
           <div className="flex items-center gap-4">
@@ -352,18 +352,18 @@ export function LogDetailModal({ log, onClose, onUpdate }: { log: DutyLog, onClo
              )}>
                 {log.priority} Priority
              </div>
-             <button onClick={onClose} className="p-2 text-text-muted hover:text-inherit"><X className="w-5 h-5" /></button>
+             <button onClick={onClose} className="p-2 text-text-muted hover:text-main"><X className="w-5 h-5" /></button>
           </div>
         </div>
 
         <div className="grid grid-cols-2 md:grid-cols-3 gap-6 py-6 border-y border-glass-border">
           <div className="space-y-1">
             <p className="text-[9px] font-black uppercase text-text-muted tracking-widest">Guest Account</p>
-            <p className="text-sm font-bold">{log.guest_name}</p>
+            <p className="text-sm font-bold text-main">{log.guest_name}</p>
           </div>
           <div className="space-y-1">
-            <p className="text-[9px] font-black uppercase text-text-muted tracking-widest">Entry Metadata</p>
-            <p className="text-sm font-bold">{formatDate(log.created_at)}</p>
+            <p className="text-[9px] font-black uppercase text-text-muted tracking-widest">Creation Date</p>
+            <p className="text-sm font-bold text-main">{formatDate(log.created_at)}</p>
           </div>
           <div className="space-y-1">
             <p className="text-[9px] font-black uppercase text-text-muted tracking-widest">Case Owner</p>
@@ -371,15 +371,15 @@ export function LogDetailModal({ log, onClose, onUpdate }: { log: DutyLog, onClo
               <div className="w-5 h-5 rounded-full bg-glass flex items-center justify-center border border-glass-border">
                 <UserIcon className="w-3 h-3 text-text-muted" />
               </div>
-              <p className="text-sm font-bold">{log.owner}</p>
+              <p className="text-sm font-bold text-main">{log.owner}</p>
             </div>
           </div>
         </div>
 
         <div className="space-y-8">
           <div className="space-y-2">
-            <label className="text-[10px] font-black uppercase text-text-muted tracking-widest pl-1">Incident Narrative</label>
-            <div className="p-5 rounded-2xl bg-glass border border-glass-border text-sm opacity-80 leading-loose shadow-inner">
+            <label className="text-[10px] font-black uppercase text-text-muted tracking-widest pl-1">Incident Description</label>
+            <div className="p-5 rounded-2xl bg-glass border border-glass-border text-sm text-main/80 leading-loose shadow-inner">
               {log.description}
             </div>
           </div>
@@ -391,7 +391,7 @@ export function LogDetailModal({ log, onClose, onUpdate }: { log: DutyLog, onClo
                 rows={3}
                 readOnly={!canEdit && !canResolve}
                 className={cn(
-                  "w-full bg-glass border border-glass-border rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-glass-border/40 transition-all placeholder-text-muted/30 resize-none",
+                  "w-full bg-glass border border-glass-border rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-glass-border/40 transition-all placeholder-text-muted/30 resize-none text-main",
                   !(canEdit || canResolve) && "opacity-50"
                 )}
                 placeholder="What was done to address this..."
@@ -401,12 +401,12 @@ export function LogDetailModal({ log, onClose, onUpdate }: { log: DutyLog, onClo
               />
             </div>
             <div className="space-y-2">
-              <label className="text-[10px] font-black uppercase text-text-muted tracking-widest pl-1">Next Step / Follow-up</label>
+              <label className="text-[10px] font-black uppercase text-text-muted tracking-widest pl-1">Follow-up Required</label>
               <textarea 
                 rows={3}
                 readOnly={!canEdit && !canResolve}
                 className={cn(
-                  "w-full bg-glass border border-glass-border rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-glass-border/40 transition-all placeholder-text-muted/30 resize-none",
+                  "w-full bg-glass border border-glass-border rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-glass-border/40 transition-all placeholder-text-muted/30 resize-none text-main",
                   !(canEdit || canResolve) && "opacity-50"
                 )}
                 placeholder="What needs to happen next..."
@@ -424,7 +424,7 @@ export function LogDetailModal({ log, onClose, onUpdate }: { log: DutyLog, onClo
                 type="text"
                 readOnly={!canEdit}
                 className={cn(
-                  "w-full bg-glass border border-glass-border rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-glass-border/40 transition-all placeholder-text-muted/30",
+                  "w-full bg-glass border border-glass-border rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-glass-border/40 transition-all placeholder-text-muted/30 text-main",
                   !canEdit && "opacity-50"
                 )}
                 placeholder="Assign to next person/shift..."
@@ -434,7 +434,7 @@ export function LogDetailModal({ log, onClose, onUpdate }: { log: DutyLog, onClo
               />
             </div>
             <div className="space-y-2">
-              <label className="text-[10px] font-black uppercase text-text-muted tracking-widest pl-1">Condition</label>
+              <label className="text-[10px] font-black uppercase text-text-muted tracking-widest pl-1">Status</label>
               <div className="flex gap-2">
                 {(['Open', 'In Progress', 'Pending', 'Resolved'] as Status[]).map((st) => {
                   const canSet = st === 'Resolved' ? canResolve : canEdit;
@@ -446,7 +446,7 @@ export function LogDetailModal({ log, onClose, onUpdate }: { log: DutyLog, onClo
                       className={cn(
                         "flex-1 py-3 text-[9px] font-black uppercase rounded-lg border transition-all relative",
                         status === st 
-                          ? "bg-inherit border-inherit font-black shadow-sm" 
+                          ? "bg-main text-bg-dark border-main shadow-sm" 
                           : "border-glass-border text-text-muted hover:border-glass-border/40",
                         !canSet && "opacity-30 cursor-not-allowed border-transparent"
                       )}
@@ -464,14 +464,14 @@ export function LogDetailModal({ log, onClose, onUpdate }: { log: DutyLog, onClo
         <div className="flex gap-4 pt-4">
           <button 
             onClick={onClose}
-            className="flex-1 py-4 bg-inherit border border-glass-border rounded-xl text-[11px] font-black uppercase tracking-widest shadow-xl hover:bg-glass transition-colors"
+            className="flex-1 py-4 bg-transparent border border-glass-border rounded-xl text-[11px] font-black uppercase tracking-widest hover:bg-glass transition-colors text-text-muted"
           >
-            Close Operational View
+            Close Incident
           </button>
           {status !== 'Resolved' && canResolve && (
             <button 
               onClick={() => { onUpdate({ status: 'Resolved' }); onClose(); }}
-              className="flex-1 py-4 bg-low text-white rounded-xl text-[11px] font-black uppercase tracking-widest shadow-xl shadow-low/20"
+              className="flex-1 py-4 bg-low text-bg-dark rounded-xl text-[11px] font-black uppercase tracking-widest shadow-xl shadow-low/20"
             >
               Mark as Resolved
             </button>

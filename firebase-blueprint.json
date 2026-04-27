@@ -56,7 +56,7 @@
       "properties": {
         "name": { "type": "string" },
         "role": { "type": "string", "enum": ["Admin", "Duty Manager", "Department Lead", "Staff", "Viewer"] },
-        "department": { "type": "string", "enum": ["Front Office", "Housekeeping", "Maintenance", "Security", "Management"] },
+        "department": { "type": "string", "enum": ["Front Office", "Housekeeping", "Maintenance", "Security", "Management", "Food & Beverage"] },
         "email": { "type": "string", "format": "email" },
         "permissions": {
           "type": "object",

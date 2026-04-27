@@ -35,9 +35,11 @@ import {
   Database,
   TrendingUp,
   Clock,
-  CheckCircle2
+  CheckCircle2,
+  History,
+  Shield
 } from 'lucide-react';
-import { motion } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 import { db, signOut } from './lib/firebase';
 import { cn } from './lib/utils';
 import { DutyLog } from './types';
@@ -50,6 +52,7 @@ import { Settings } from './components/Settings';
 import { StaffList } from './components/StaffList';
 import { AuditLogViewer } from './components/AuditLogViewer';
 import { Dashboard } from './components/Dashboard';
+import { CaseHistory } from './components/CaseHistory';
 import { LandingPage } from './components/LandingPage';
 import { LoginPage } from './components/LoginPage';
 import { CreateAccountPage } from './components/CreateAccountPage';
@@ -75,18 +78,22 @@ function useTheme() {
   return { theme, setTheme };
 }
 
+import { UserManagement } from './components/UserManagement';
+
 function Navigation({ unreadCount }: { unreadCount: number }) {
-  const { hasPermission } = useAuth();
+  const { hasPermission, isAdmin } = useAuth();
   
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, path: '/app/dashboard' },
     { id: 'my-tasks', label: 'My Tasks', icon: CheckCircle2, path: '/app/tasks' },
-    { id: 'logs', label: 'Duty Log', icon: FileText, path: '/app/logs' },
-    { id: 'analytics', label: 'Analytics', icon: TrendingUp, path: '/app/analytics' },
-    { id: 'handovers', label: 'Handovers', icon: Clock, path: '/app/handovers' },
-    { id: 'checklist', label: 'Checklist', icon: ClipboardCheck, path: '/app/checklist' },
-    ...(hasPermission('view_audit_logs') ? [{ id: 'audit', label: 'Audit Logs', icon: Database, path: '/app/audit' }] : []),
-    { id: 'staff', label: 'Staff', icon: Users, path: '/app/staff' },
+    { id: 'logs', label: 'Incident Log', icon: FileText, path: '/app/logs' },
+    { id: 'history', label: 'Case History', icon: History, path: '/app/history' },
+    { id: 'handovers', label: 'Handover', icon: Clock, path: '/app/handovers' },
+    { id: 'checklist', label: 'Shift Checklist', icon: ClipboardCheck, path: '/app/checklist' },
+    { id: 'analytics', label: 'Reports', icon: TrendingUp, path: '/app/analytics' },
+    ...(hasPermission('view_audit_logs') ? [{ id: 'audit', label: 'System Audit', icon: Database, path: '/app/audit' }] : []),
+    { id: 'staff', label: 'Team', icon: Users, path: '/app/staff' },
+    ...(isAdmin ? [{ id: 'users', label: 'User Admin', icon: Shield, path: '/app/users' }] : []),
     { id: 'settings', label: 'Settings', icon: SettingsIcon, path: '/app/settings' },
   ];
 
@@ -149,6 +156,8 @@ function Navigation({ unreadCount }: { unreadCount: number }) {
   );
 }
 
+import { Onboarding } from './components/Onboarding';
+
 function MainLayout() {
   const { user, profile, hasPermission, loading: authLoading } = useAuth();
   const [isLogModalOpen, setIsLogModalOpen] = useState(false);
@@ -159,7 +168,7 @@ function MainLayout() {
 
   // RT Notification Listener for Critical Cases
   useEffect(() => {
-    if (!profile) return;
+    if (!profile || !profile.department) return;
 
     const baseRef = collection(db, 'duty_logs');
     let q;
@@ -198,7 +207,7 @@ function MainLayout() {
   }, [addNotification, profile, hasPermission]);
 
   useEffect(() => {
-    if (!profile) return;
+    if (!profile || !profile.department) return;
     
     const q = query(collection(db, 'checklists'));
     const unsubscribe = onSnapshot(q, (s) => {
@@ -217,8 +226,42 @@ function MainLayout() {
     return () => unsubscribe();
   }, [profile]);
 
-  if (authLoading) return null;
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-bg-dark flex items-center justify-center p-8">
+        <div className="space-y-4 text-center">
+          <h1 className="text-5xl font-display font-black tracking-tighter text-white animate-pulse">RELAY</h1>
+          <div className="w-48 h-1 bg-white/5 rounded-full overflow-hidden mx-auto">
+            <motion.div 
+              className="h-full bg-white"
+              animate={{ x: [-200, 200] }}
+              transition={{ repeat: Infinity, duration: 1.5, ease: "easeInOut" }}
+            />
+          </div>
+          <p className="text-[10px] text-text-muted font-black uppercase tracking-[0.2em]">Preparing Workspace</p>
+        </div>
+      </div>
+    );
+  }
+  
   if (!user) return <Navigate to="/login" replace />;
+
+  // Special case: Logged in but no profile yet (e.g. just signed up and listener hasn't hit yet)
+  if (!profile) {
+    return (
+      <div className="min-h-screen bg-bg-dark flex items-center justify-center p-8">
+        <div className="space-y-4 text-center">
+          <h1 className="text-4xl font-display font-black tracking-tighter text-white">Initializing Profile</h1>
+          <div className="w-12 h-12 border-2 border-white/20 border-t-white rounded-full animate-spin mx-auto mt-6" />
+        </div>
+      </div>
+    );
+  }
+
+  // Onboarding Check
+  if (profile && !profile.department) {
+    return <Onboarding />;
+  }
 
   const viewName = location.pathname.split('/').pop() || 'dashboard';
 
@@ -313,11 +356,13 @@ export default function App() {
                  <Route path="dashboard" element={<DashboardLoader />} />
                  <Route path="tasks" element={<TasksLoader />} />
                  <Route path="logs" element={<LogsLoader />} />
+                 <Route path="history" element={<HistoryLoader />} />
                  <Route path="analytics" element={<AnalyticsLoader />} />
                  <Route path="handovers" element={<HandoversLoader />} />
                  <Route path="checklist" element={<Checklist />} />
                  <Route path="audit" element={<AuditLoader />} />
                  <Route path="staff" element={<StaffLoader />} />
+                 <Route path="users" element={<UserManagement />} />
                  <Route path="settings" element={<Settings />} />
               </Route>
 
@@ -349,6 +394,11 @@ function TasksLoader() {
 function LogsLoader() {
   const { logs } = useOutletContext<ContextType>();
   return <DutyLogList logs={logs} />;
+}
+
+function HistoryLoader() {
+  const { logs } = useOutletContext<ContextType>();
+  return <CaseHistory logs={logs} />;
 }
 
 function AnalyticsLoader() {

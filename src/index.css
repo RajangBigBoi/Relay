@@ -13,10 +13,14 @@
   --color-glass-border: var(--glass-border);
   --color-text-muted: var(--text-secondary);
   --color-bg-dark: var(--bg-main);
+  --color-text-main: var(--text-primary);
+  --color-main: var(--main);
 }
 
 @layer base {
   :root {
+    --main: #FFFFFF;
+    --main-rgb: 255, 255, 255;
     --bg-main: #0C0C0E;
     --text-primary: #FFFFFF;
     --text-secondary: #94A3B8;
@@ -40,8 +44,8 @@
     --high: #EA580C;
     --medium: #CA8A04;
     --low: #16A34A;
-    --sidebar-bg: rgba(255, 255, 255, 0.6);
-    --header-bg: rgba(255, 255, 255, 0.4);
+    --sidebar-bg: #FFFFFF;
+    --header-bg: rgba(255, 255, 255, 0.8);
   }
 }
 
@@ -56,8 +60,22 @@ body {
 }
 
 :root.light body {
-  --bg-accent-1: #E0E7FF;
-  --bg-accent-2: #F1F5F9;
+  --bg-accent-1: #F1F5F9;
+  --bg-accent-2: #E2E8F0;
+  background-image: none;
+}
+
+/* Global Fix for Menu and Text Visibility */
+.light .text-white {
+  color: var(--text-primary) !important;
+}
+
+.light .bg-glass {
+  background-color: var(--glass-bg);
+}
+
+.light .bg-bg-dark\/60 {
+  background-color: var(--bg-main);
 }
 
 /* Custom Scrollbar */

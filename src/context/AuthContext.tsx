@@ -22,7 +22,7 @@ const AuthContext = createContext<AuthContextType>({
 
 export const useAuth = () => useContext(AuthContext);
 
-const DEFAULT_PERMISSIONS: Record<PlatformRole, PermissionFlags> = {
+export const DEFAULT_PERMISSIONS: Record<PlatformRole, PermissionFlags> = {
   Admin: {
     view_all_cases: true,
     view_department_cases: true,
@@ -106,56 +106,61 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let unsubscribeProfile: (() => void) | null = null;
+
     const unsubscribeAuth = onAuthStateChanged(auth, async (firebaseUser) => {
       setUser(firebaseUser);
       
+      // Cleanup previous profile listener if it exists
+      if (unsubscribeProfile) {
+        unsubscribeProfile();
+        unsubscribeProfile = null;
+      }
+
       if (firebaseUser) {
         // Listen to profile changes
-        const unsubscribeProfile = onSnapshot(doc(db, 'staffMembers', firebaseUser.uid), async (docSnap) => {
+        unsubscribeProfile = onSnapshot(doc(db, 'staffMembers', firebaseUser.uid), async (docSnap) => {
           if (docSnap.exists()) {
             setProfile({ id: docSnap.id, ...docSnap.data() } as Staff);
+            setLoading(false);
           } else {
-            const role: PlatformRole = 'Admin';
-            const dept: Department = 'Management';
-            const newProfile: Staff = {
-              id: firebaseUser.uid, // Match type
-              name: firebaseUser.displayName || 'System Administrator',
-              email: firebaseUser.email || '',
-              role: role,
-              department: dept,
-              permissions: DEFAULT_PERMISSIONS[role],
-              created_at: new Date() as any, // Placeholder for state, server version will come in next snapshot
-            };
-            try {
-              const { id, ...docData } = newProfile;
-              await setDoc(doc(db, 'staffMembers', firebaseUser.uid), {
-                ...docData,
-                created_at: serverTimestamp()
-              });
-              setProfile(newProfile); // Eagerly set to avoid null gap
-            } catch (err) {
-              console.error("Critical: Failed to bootstrap staff profile:", err);
-            }
+             // Universal bootstrap for ANY user missing a profile
+             // This solves the "stuck" issue for both Social and Password users
+             const role: PlatformRole = 'Staff';
+             const newProfile: Partial<Staff> = {
+               id: firebaseUser.uid,
+               name: firebaseUser.displayName || 'Relay User',
+               email: firebaseUser.email || '',
+               role: role,
+               permissions: DEFAULT_PERMISSIONS[role],
+               created_at: new Date() as any,
+             };
+             
+             try {
+               await setDoc(doc(db, 'staffMembers', firebaseUser.uid), {
+                 ...newProfile,
+                 created_at: serverTimestamp()
+               }, { merge: true });
+               // Profile snapshot will trigger again with real data
+             } catch (err) {
+               console.error("Critical: Failed to bootstrap staff profile:", err);
+               setLoading(false);
+             }
           }
-          setLoading(false);
         }, (error) => {
           console.error("Profile Listener Error:", error);
-          console.log("Current Auth State:", {
-            uid: firebaseUser.uid,
-            email: firebaseUser.email,
-            emailVerified: firebaseUser.emailVerified,
-            isAnonymous: firebaseUser.isAnonymous
-          });
-          setLoading(false); // Escape hatch to avoid infinite loading
+          setLoading(false);
         });
-        return () => unsubscribeProfile();
       } else {
         setProfile(null);
         setLoading(false);
       }
     });
 
-    return () => unsubscribeAuth();
+    return () => {
+      unsubscribeAuth();
+      if (unsubscribeProfile) unsubscribeProfile();
+    };
   }, []);
 
   const hasPermission = React.useCallback((flag: keyof PermissionFlags) => {

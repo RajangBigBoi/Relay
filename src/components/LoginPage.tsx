@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
-import { auth, signInWithEmailAndPassword, signIn } from '../lib/firebase';
+import { auth, signInWithEmailAndPassword, signIn, signOut } from '../lib/firebase';
 import { motion } from 'motion/react';
-import { Mail, Lock, AlertCircle, Loader2, X } from 'lucide-react';
+import { Mail, Lock, AlertCircle, Loader2, X, LogOut, User } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 export function LoginPage() {
@@ -12,15 +12,21 @@ export function LoginPage() {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
 
-  // Redirect if already logged in
+  // Redirect if already logged in ONLY if we were sent here by ProtectedRoute
+  // or if we just successfully logged in on this page.
   React.useEffect(() => {
     if (user) {
       const from = (location.state as any)?.from?.pathname || "/app/dashboard";
-      navigate(from, { replace: true });
+      const manual = (location.state as any)?.manual;
+
+      // Only auto-redirect if NOT a manual navigation to login
+      if (!manual || loading) {
+        navigate(from, { replace: true });
+      }
     }
-  }, [user, navigate, location]);
+  }, [user, navigate, location, loading]);
 
   const handleEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -45,6 +51,17 @@ export function LoginPage() {
     }
   };
 
+  const handleSignOut = async () => {
+    setLoading(true);
+    try {
+      await signOut();
+      setLoading(false);
+    } catch (err) {
+      setError("Failed to sign out.");
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6 font-sans">
       <motion.div 
@@ -63,6 +80,45 @@ export function LoginPage() {
           <h1 className="text-3xl font-bold tracking-tight text-slate-900">Sign in</h1>
           <p className="text-slate-500 text-sm">Access your Relay workspace.</p>
         </div>
+
+        {user && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="mb-8 p-4 bg-slate-50 border border-slate-100 rounded-2xl space-y-4"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-white rounded-full border border-slate-200 flex items-center justify-center">
+                <User className="w-5 h-5 text-slate-400" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-bold text-slate-900 truncate">{profile?.name || user.email}</p>
+                <p className="text-[10px] text-slate-500 uppercase tracking-widest font-black">Currently active</p>
+              </div>
+              <button 
+                onClick={handleSignOut}
+                className="p-2 text-slate-400 hover:text-red-600 transition-colors"
+                title="Sign Out"
+              >
+                <LogOut className="w-4 h-4" />
+              </button>
+            </div>
+            <button 
+              onClick={() => navigate('/app/dashboard')}
+              className="w-full py-2.5 bg-slate-200 hover:bg-slate-300 text-slate-900 rounded-xl text-xs font-bold transition-all"
+            >
+              Continue as {profile?.name?.split(' ')[0] || 'User'}
+            </button>
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-slate-200"></div>
+              </div>
+              <div className="relative flex justify-center text-[9px] font-black uppercase tracking-tighter">
+                <span className="bg-slate-50 px-2 text-slate-400">or use another account</span>
+              </div>
+            </div>
+          </motion.div>
+        )}
 
         <form onSubmit={handleEmailLogin} className="space-y-6">
           {error && (

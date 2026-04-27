@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { auth, db, createUserWithEmailAndPassword, updateProfile } from '../lib/firebase';
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
-import { motion } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 import { Mail, Lock, User, AlertCircle, Loader2, X, Building2, Briefcase } from 'lucide-react';
 import { PlatformRole, Department, PermissionFlags } from '../types';
 
@@ -35,19 +35,37 @@ const DEFAULT_PERMISSIONS: Record<PlatformRole, PermissionFlags> = {
 };
 
 export function CreateAccountPage() {
+  const [step, setStep] = useState<'details' | 'verify'>('details');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [role, setRole] = useState<PlatformRole>('Staff');
-  const [department, setDepartment] = useState<Department>('Front Office');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [verificationCode, setVerificationCode] = useState('');
+  const [generatedCode, setGeneratedCode] = useState('');
   const navigate = useNavigate();
 
-  const handleSignUp = async (e: React.FormEvent) => {
+  const handleInitiateSignUp = (e: React.FormEvent) => {
     e.preventDefault();
+    setError('');
     if (password.length < 6) {
       return setError("Password must be at least 6 characters.");
+    }
+    
+    // Generate a 6-digit code
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    setGeneratedCode(code);
+    
+    // In a real app, this is where we'd call an API to send the email.
+    // For this environment, we'll log it and move to the next step.
+    console.log(`[RELAY] Verification code for ${email}: ${code}`);
+    setStep('verify');
+  };
+
+  const handleFinalizeSignUp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (verificationCode !== generatedCode) {
+      return setError("Invalid verification code. Please check your email (or console for demo).");
     }
 
     setLoading(true);
@@ -56,22 +74,92 @@ export function CreateAccountPage() {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       await updateProfile(userCredential.user, { displayName: name });
       
-      // Manually create profile to bypass AuthProvider's default bootstrapping
-      await setDoc(doc(db, 'staffMembers', userCredential.user.uid), {
-        name,
-        email,
-        role,
-        department,
-        permissions: DEFAULT_PERMISSIONS[role],
-        created_at: serverTimestamp()
-      });
-
+      // AuthContext will automatically detect the new user and bootstrap the profile record
       navigate('/app/dashboard');
     } catch (err: any) {
-      setError(err.message || "Registration failed. Please try again.");
+      if (err.code === 'auth/operation-not-allowed') {
+        setError("Sign-in with Email/Password is not enabled in Firebase Console. Please enable it in Authentication > Sign-in method.");
+      } else if (err.message?.includes('network-request-failed')) {
+        setError("Firebase connection error. Please refresh and try again or check your internet.");
+      } else {
+        setError(err.message || "Registration failed. Please try again.");
+      }
       setLoading(false);
     }
   };
+
+  if (step === 'verify') {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6 font-sans">
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="max-w-md w-full bg-white border border-slate-200 p-8 lg:p-12 rounded-3xl shadow-xl shadow-slate-200/50 relative text-center"
+        >
+          <div className="mb-6 p-4 bg-slate-900 rounded-2xl inline-block mx-auto">
+            <Mail className="w-8 h-8 text-white" />
+          </div>
+          
+          <h2 className="text-2xl font-bold text-slate-900 mb-2">Verify your email</h2>
+          <p className="text-sm text-slate-500 mb-8 px-4">
+            We've sent a 6-digit verification code to <br/>
+            <span className="font-bold text-slate-900 break-all">{email}</span>
+          </p>
+
+          <AnimatePresence mode="wait">
+            {error && (
+              <motion.div 
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                className="p-4 bg-red-50 border border-red-100 rounded-xl flex items-start gap-3 text-red-600 text-[11px] font-semibold mb-6 text-left"
+              >
+                <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                <span>{error}</span>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          <div className="p-4 bg-blue-50 border border-blue-100 rounded-xl text-blue-700 text-[10px] font-bold uppercase tracking-widest mb-8">
+             Demo Mode: Verification code is {generatedCode}
+          </div>
+
+          <form onSubmit={handleFinalizeSignUp} className="space-y-6">
+            <div className="relative group">
+              <input 
+                type="text" 
+                maxLength={6}
+                required
+                autoFocus
+                className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-2 py-5 text-center text-3xl font-black tracking-[0.2em] text-slate-900 focus:outline-none focus:ring-4 focus:ring-slate-900/5 focus:border-slate-900 transition-all placeholder:text-slate-200 sm:tracking-[0.5em]"
+                placeholder="000000"
+                value={verificationCode}
+                onChange={e => setVerificationCode(e.target.value.replace(/\D/g, ''))}
+              />
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading || verificationCode.length < 6}
+              className="w-full bg-slate-900 text-white py-4 px-6 rounded-xl font-bold text-sm tracking-wide hover:bg-slate-800 transition-all shadow-lg shadow-slate-200 disabled:opacity-50 disabled:cursor-not-allowed h-14 flex items-center justify-center translate-z-0"
+            >
+              {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : "Verify & Create Account"}
+            </button>
+          </form>
+
+          <button 
+            onClick={() => {
+              setStep('details');
+              setError('');
+            }}
+            className="mt-8 text-sm text-slate-500 hover:text-slate-900 font-bold transition-colors block w-full text-center"
+          >
+            Go back to details
+          </button>
+        </motion.div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6 font-sans">
@@ -92,7 +180,7 @@ export function CreateAccountPage() {
           <p className="text-slate-500 text-sm">Set up your Relay access.</p>
         </div>
 
-        <form onSubmit={handleSignUp} className="space-y-6">
+        <form onSubmit={handleInitiateSignUp} className="space-y-6">
           {error && (
             <motion.div 
               initial={{ opacity: 0, x: -10 }}
@@ -151,55 +239,16 @@ export function CreateAccountPage() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="space-y-2">
-              <label className="text-xs font-bold text-slate-700 ml-1 uppercase tracking-wider">Department</label>
-              <div className="relative">
-                <Building2 className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
-                <select 
-                  value={department}
-                  onChange={e => setDepartment(e.target.value as Department)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-12 pr-10 py-3.5 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/5 focus:border-slate-900 transition-all appearance-none cursor-pointer"
-                >
-                  <option value="Front Office">Front Office</option>
-                  <option value="Housekeeping">Housekeeping</option>
-                  <option value="Maintenance">Maintenance</option>
-                  <option value="Security">Security</option>
-                  <option value="Management">Management</option>
-                </select>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-xs font-bold text-slate-700 ml-1 uppercase tracking-wider">Role</label>
-              <div className="relative">
-                <Briefcase className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
-                <select 
-                  value={role}
-                  onChange={e => setRole(e.target.value as PlatformRole)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-12 pr-10 py-3.5 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/5 focus:border-slate-900 transition-all appearance-none cursor-pointer"
-                >
-                  <option value="Staff">Staff</option>
-                  <option value="Department Lead">Department Lead</option>
-                  <option value="Duty Manager">Duty Manager</option>
-                  <option value="Admin">Admin</option>
-                  <option value="Viewer">Viewer</option>
-                </select>
-              </div>
-            </div>
-          </div>
-
           <button
             type="submit"
-            disabled={loading}
-            className="w-full bg-slate-900 text-white py-4 px-6 rounded-xl font-bold text-sm tracking-wide hover:bg-slate-800 transition-all shadow-lg shadow-slate-200 disabled:opacity-50 disabled:cursor-not-allowed h-14 flex items-center justify-center mt-4"
+            className="w-full bg-slate-900 text-white py-4 px-6 rounded-xl font-bold text-sm tracking-wide hover:bg-slate-800 transition-all shadow-lg shadow-slate-200 h-14 flex items-center justify-center mt-4"
           >
-            {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : "Create Account"}
+            Continue & Send Code
           </button>
         </form>
 
         <p className="text-center text-sm text-slate-500 mt-10">
-          Already have an account? <Link to="/login" className="text-slate-900 font-bold hover:underline">Sign in</Link>
+          Already have an account? <Link to="/login" state={{ manual: true }} className="text-slate-900 font-bold hover:underline">Sign in</Link>
         </p>
       </motion.div>
     </div>

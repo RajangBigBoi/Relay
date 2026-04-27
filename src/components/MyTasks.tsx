@@ -16,36 +16,36 @@ export function MyTasks({ logs, user }: { logs: DutyLog[], user: User }) {
   const resolvedTasks = logs.filter(l => l.status === 'Resolved');
 
   return (
-    <div className="p-10 space-y-10 max-w-6xl mx-auto">
+    <div className="p-10 space-y-10 max-w-6xl mx-auto text-main">
       <div className="flex justify-between items-end">
         <div>
-          <h2 className="text-3xl font-bold tracking-tight text-white transition-all">My Workbench</h2>
-          <p className="text-[11px] text-text-muted uppercase tracking-[0.2em] font-black mt-1">Personal Service Queue for {user.displayName?.split(' ')[0]}</p>
+          <h2 className="text-3xl font-bold tracking-tight text-main transition-all">My Tasks</h2>
+          <p className="text-[11px] text-text-muted uppercase tracking-[0.2em] font-black mt-1">Assignments for {user.displayName?.split(' ')[0]}</p>
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
         <div className="lg:col-span-2 space-y-8">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-sm font-black text-white uppercase tracking-[0.25em] flex items-center gap-3">
+            <h3 className="text-sm font-black text-main uppercase tracking-[0.25em] flex items-center gap-3">
               <span className="w-2 h-2 bg-high rounded-full shadow-[0_0_8px_rgba(249,115,22,0.6)]" />
-              Active Assignments ({openTasks.length})
+              Current Jobs ({openTasks.length})
             </h3>
           </div>
           <div className="grid gap-6">
             {openTasks.map((log) => (
-              <div key={log.id} className="bg-glass backdrop-blur-md border border-glass-border rounded-[28px] p-8 space-y-6 hover:border-white/20 transition-all group relative overflow-hidden">
+              <div key={log.id} className="bg-glass backdrop-blur-md border border-glass-border rounded-[28px] p-8 space-y-6 hover:border-glass-border/40 transition-all group relative overflow-hidden">
                 <div className="absolute top-0 right-0 w-24 h-24 bg-white/5 blur-3xl rounded-full -mr-8 -mt-8" />
                 
                 <div className="flex items-start justify-between relative z-10">
                   <div className="space-y-1">
-                    <span className="text-[10px] font-bold text-white/30 uppercase tracking-[0.2em]">#{log.case_id}</span>
-                    <h4 className="text-2xl font-bold text-white tracking-tight leading-tight group-hover:translate-x-1 transition-transform">{log.issue_type}</h4>
-                    <p className="text-sm text-text-muted/80 line-clamp-2 max-w-lg mt-2">{log.description}</p>
+                    <span className="text-[10px] font-bold text-main/30 uppercase tracking-[0.2em]">#{log.case_id}</span>
+                    <h4 className="text-2xl font-bold text-main tracking-tight leading-tight group-hover:translate-x-1 transition-transform">{log.issue_type}</h4>
+                    <p className="text-sm text-text-muted line-clamp-2 max-w-lg mt-2">{log.description}</p>
                   </div>
                   <div className={cn(
                     "px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-[0.1em] border",
-                    log.priority === 'Critical' ? "bg-critical/20 text-critical border-critical/30" : "bg-white/5 text-text-muted border-glass-border"
+                    log.priority === 'Critical' ? "bg-critical/20 text-critical border-critical/30" : "bg-glass border-glass-border text-text-muted"
                   )}>
                     {log.priority}
                   </div>
@@ -53,30 +53,30 @@ export function MyTasks({ logs, user }: { logs: DutyLog[], user: User }) {
                 
                 <div className="flex items-center gap-8 relative z-10">
                   <div className="flex items-center gap-2.5">
-                    <div className="w-8 h-8 rounded-lg bg-white/5 border border-glass-border flex items-center justify-center">
-                      <MapPin className="w-4 h-4 text-text-muted" />
+                    <div className="w-8 h-8 rounded-lg bg-glass border border-glass-border flex items-center justify-center text-text-muted">
+                      <MapPin className="w-4 h-4" />
                     </div>
                     <div>
                       <p className="text-[10px] text-text-muted uppercase font-black tracking-widest leading-none mb-1">LOCATION</p>
-                      <p className="text-sm font-bold text-white/90 leading-none">Room {log.room_number}</p>
+                      <p className="text-sm font-bold text-main/90 leading-none">Room {log.room_number}</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-2.5">
-                    <div className="w-8 h-8 rounded-lg bg-white/5 border border-glass-border flex items-center justify-center">
-                      <Clock className="w-4 h-4 text-text-muted" />
+                    <div className="w-8 h-8 rounded-lg bg-glass border border-glass-border flex items-center justify-center text-text-muted">
+                      <Clock className="w-4 h-4" />
                     </div>
                     <div>
-                      <p className="text-[10px] text-text-muted uppercase font-black tracking-widest leading-none mb-1">ELAPSED</p>
-                      <p className="text-sm font-bold text-white/90 leading-none">{log.created_at ? formatTime(log.created_at.toDate()) : 'Now'}</p>
+                      <p className="text-[10px] text-text-muted uppercase font-black tracking-widest leading-none mb-1">LOGGED</p>
+                      <p className="text-sm font-bold text-main/90 leading-none">{log.created_at ? formatTime(log.created_at.toDate()) : 'Now'}</p>
                     </div>
                   </div>
                 </div>
 
                 <div className="pt-6 border-t border-glass-border flex gap-3 relative z-10">
-                  <button className="flex-1 bg-white text-black py-4 rounded-[14px] text-[11px] font-black uppercase tracking-[0.15em] hover:bg-neutral-200 transition-all shadow-xl shadow-white/5">
+                  <button className="flex-1 bg-main text-bg-dark py-4 rounded-[14px] text-[11px] font-black uppercase tracking-[0.15em] transition-all shadow-xl">
                     Update Progress
                   </button>
-                  <button className="px-6 py-4 bg-white/5 border border-glass-border text-white rounded-[14px] hover:bg-white/10 transition-all">
+                  <button className="px-6 py-4 bg-glass border border-glass-border text-main rounded-[14px] hover:bg-glass-border/10 transition-all">
                     <ExternalLink className="w-5 h-5" />
                   </button>
                 </div>
@@ -88,8 +88,8 @@ export function MyTasks({ logs, user }: { logs: DutyLog[], user: User }) {
                   <CheckCircle2 className="w-8 h-8 text-low" />
                 </div>
                 <div>
-                  <p className="text-white font-black text-sm uppercase tracking-[0.2em] mb-2">Queue Optimized</p>
-                  <p className="text-text-muted font-bold text-[10px] uppercase tracking-widest opacity-50">Zero active service requests detected</p>
+                  <p className="text-main font-black text-sm uppercase tracking-[0.2em] mb-2">No Active Tasks</p>
+                  <p className="text-text-muted font-bold text-[10px] uppercase tracking-widest opacity-50">You have no pending jobs at this time</p>
                 </div>
               </div>
             )}

@@ -64,18 +64,17 @@ export function Analytics({ logs }: { logs: DutyLog[] }) {
   const avgResponseTime = '14m'; // Placeholder for complex calc
 
   return (
-    <div className="p-10 space-y-10 max-w-7xl mx-auto custom-scrollbar">
+    <div className="p-10 space-y-10 max-w-7xl mx-auto custom-scrollbar text-main">
       <div>
-        <h2 className="text-3xl font-bold tracking-tight text-white">Operations Intelligence</h2>
-        <p className="text-[11px] text-text-muted uppercase tracking-[0.2em] font-black mt-1">Operational performance & trends</p>
+        <h2 className="text-3xl font-bold tracking-tight text-main">Performance Reports</h2>
+        <p className="text-[11px] text-text-muted uppercase tracking-[0.2em] font-black mt-1">Incident Trends & Reporting</p>
       </div>
 
       {/* KPI Row */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {[
-          { label: 'Total Volume', value: totalVolume, trend: '+12%', up: true, icon: TrendingUp },
+          { label: 'Total Incidents', value: totalVolume, trend: '+12%', up: true, icon: TrendingUp },
           { label: 'Resolution Rate', value: `${resolutionRate}%`, trend: '+5%', up: true, icon: CheckCircle2 },
-          { label: 'Avg Feedback', value: '4.8', trend: '-2%', up: false, icon: Users },
           { label: 'Response Time', value: avgResponseTime, trend: 'stable', up: true, icon: Clock },
         ].map((kpi, i) => (
           <div key={i} className="bg-glass backdrop-blur-md border border-glass-border p-6 rounded-2xl">
@@ -92,7 +91,7 @@ export function Analytics({ logs }: { logs: DutyLog[] }) {
               </div>
             </div>
             <p className="text-text-muted text-[11px] uppercase tracking-widest font-black mb-1">{kpi.label}</p>
-            <p className="text-3xl font-black tracking-tighter text-white">{kpi.value}</p>
+            <p className="text-3xl font-black tracking-tighter text-main">{kpi.value}</p>
           </div>
         ))}
       </div>
