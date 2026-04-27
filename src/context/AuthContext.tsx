@@ -118,36 +118,37 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       if (firebaseUser) {
+        // Safety timeout for profile loading
+        const profileTimeout = setTimeout(() => {
+          setLoading(false);
+        }, 10000);
+
         // Listen to profile changes
         unsubscribeProfile = onSnapshot(doc(db, 'staffMembers', firebaseUser.uid), async (docSnap) => {
+          clearTimeout(profileTimeout);
+          
           if (docSnap.exists()) {
             setProfile({ id: docSnap.id, ...docSnap.data() } as Staff);
             setLoading(false);
           } else {
              // Universal bootstrap for ANY user missing a profile
-             // This solves the "stuck" issue for both Social and Password users
              const role: PlatformRole = 'Staff';
-             const newProfile: Partial<Staff> = {
-               id: firebaseUser.uid,
-               name: firebaseUser.displayName || 'Relay User',
-               email: firebaseUser.email || '',
-               role: role,
-               permissions: DEFAULT_PERMISSIONS[role],
-               created_at: new Date() as any,
-             };
-             
              try {
                await setDoc(doc(db, 'staffMembers', firebaseUser.uid), {
-                 ...newProfile,
+                 name: firebaseUser.displayName || 'Relay User',
+                 email: firebaseUser.email || '',
+                 role: role,
+                 department: 'Front Office',
+                 permissions: DEFAULT_PERMISSIONS[role],
                  created_at: serverTimestamp()
                }, { merge: true });
-               // Profile snapshot will trigger again with real data
              } catch (err) {
                console.error("Critical: Failed to bootstrap staff profile:", err);
                setLoading(false);
              }
           }
         }, (error) => {
+          clearTimeout(profileTimeout);
           console.error("Profile Listener Error:", error);
           setLoading(false);
         });

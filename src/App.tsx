@@ -39,7 +39,7 @@ import {
   History,
   Shield
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { db, signOut } from './lib/firebase';
 import { cn } from './lib/utils';
 import { DutyLog } from './types';

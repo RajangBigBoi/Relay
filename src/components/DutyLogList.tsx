@@ -23,7 +23,7 @@ import { recordAuditLog } from '../lib/auditService';
 import { useAuth } from '../context/AuthContext';
 import { cn, formatTime, formatDate } from '../lib/utils';
 import { DutyLog, Priority, Status, Shift, Department } from '../types';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 const PRIORITY_COLORS = {
   Critical: 'text-red-500 bg-red-500/10 border-red-500/20',

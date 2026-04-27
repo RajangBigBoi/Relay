@@ -14,7 +14,7 @@ import { collection, query, onSnapshot, updateDoc, doc, serverTimestamp, addDoc,
 import { useAuth } from '../context/AuthContext';
 import { cn, formatTime } from '../lib/utils';
 import { ShiftChecklist, Shift, Department } from '../types';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 export function Checklist() {
   const { profile, hasPermission } = useAuth();

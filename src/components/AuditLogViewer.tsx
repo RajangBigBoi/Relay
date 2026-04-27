@@ -14,7 +14,7 @@ import { collection, query, orderBy, limit, onSnapshot, where } from 'firebase/f
 import { useAuth } from '../context/AuthContext';
 import { AuditLog } from '../types';
 import { cn, formatDate, formatTime } from '../lib/utils';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 export function AuditLogViewer() {
   const { hasPermission } = useAuth();

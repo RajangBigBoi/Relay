@@ -16,7 +16,7 @@ import {
 import { db } from '../lib/firebase';
 import { collection, onSnapshot, query, setDoc, doc, deleteDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { Staff, PlatformRole, Department, PermissionFlags } from '../types';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { recordAuditLog } from '../lib/auditService';
 import { useAuth } from '../context/AuthContext';
 import { cn } from '../lib/utils';

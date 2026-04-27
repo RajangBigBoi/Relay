@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { DutyLog } from '../types';
 import { cn } from '../lib/utils';
-import { AnimatePresence, motion } from 'motion/react';
+import { AnimatePresence, motion } from 'framer-motion';
 import { CheckCircle2 } from 'lucide-react';
 import { LogDetailModal } from './DutyLogList';
 import { useAuth } from '../context/AuthContext';

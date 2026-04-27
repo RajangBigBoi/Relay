@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { auth, db, createUserWithEmailAndPassword, updateProfile } from '../lib/firebase';
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Mail, Lock, User, AlertCircle, Loader2, X, Building2, Briefcase } from 'lucide-react';
 import { PlatformRole, Department, PermissionFlags } from '../types';
 

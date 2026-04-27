@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { motion } from 'motion/react';
+import { motion } from 'framer-motion';
 import { CheckCircle2, LayoutDashboard, Clock, ClipboardCheck, ArrowRight, LogOut, User } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { signOut } from '../lib/firebase';

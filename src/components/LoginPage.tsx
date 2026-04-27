@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { auth, signInWithEmailAndPassword, signIn, signOut } from '../lib/firebase';
-import { motion } from 'motion/react';
+import { motion } from 'framer-motion';
 import { Mail, Lock, AlertCircle, Loader2, X, LogOut, User } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
