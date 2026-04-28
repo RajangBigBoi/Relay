@@ -28,7 +28,7 @@ export const isFirebaseConfigured = missingFirebaseVars.length === 0;
 if (!isFirebaseConfigured) {
   console.error(
     `Missing Firebase environment variables: ${missingFirebaseVars.join(', ')}. ` +
-    'Set them in your .env.local (and Vercel Environment Variables for deployment).'
+      'Set them in your .env.local and deployment environment variables.'
   );
 }
 
