@@ -22,7 +22,7 @@ import { db } from '../lib/firebase';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export function Settings() {
-  const { profile } = useAuth();
+  const { profile, can } = useAuth();
   const [theme, setTheme] = useState<'dark' | 'light'>(() => {
     return (localStorage.getItem('theme') as 'dark' | 'light') || 'light';
   });
@@ -104,7 +104,8 @@ export function Settings() {
           action: (
             <TwoFactorToggle 
               enabled={profile?.two_factor_enabled || false} 
-              userId={profile?.id || ''} 
+              userId={profile?.id || ''}
+              canManageProfileSecurity={can('manage_staff')}
             />
           )
         },
@@ -161,12 +162,12 @@ export function Settings() {
   );
 }
 
-function TwoFactorToggle({ enabled, userId }: { enabled: boolean, userId: string }) {
+function TwoFactorToggle({ enabled, userId, canManageProfileSecurity }: { enabled: boolean, userId: string, canManageProfileSecurity: boolean }) {
   const [showSetup, setShowSetup] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
 
   const toggle = async () => {
-    if (!userId) return;
+    if (!userId || !canManageProfileSecurity) return;
     
     if (!enabled) {
       setShowSetup(true);
@@ -187,6 +188,7 @@ function TwoFactorToggle({ enabled, userId }: { enabled: boolean, userId: string
   };
 
   const confirmSetup = async () => {
+    if (!canManageProfileSecurity) return;
     setIsUpdating(true);
     try {
       await updateDoc(doc(db, 'staffMembers', userId), {
@@ -212,11 +214,11 @@ function TwoFactorToggle({ enabled, userId }: { enabled: boolean, userId: string
         </span>
         <button 
           onClick={toggle}
-          disabled={isUpdating}
+          disabled={isUpdating || !canManageProfileSecurity}
           className={cn(
             "w-12 h-6 rounded-full transition-all relative p-1",
             enabled ? "bg-low shadow-[0_0_12px_rgba(34,197,94,0.3)]" : "bg-white/10",
-            isUpdating && "opacity-50 cursor-wait"
+            (isUpdating || !canManageProfileSecurity) && "opacity-50 cursor-not-allowed"
           )}
         >
           <div className={cn(
@@ -224,6 +226,9 @@ function TwoFactorToggle({ enabled, userId }: { enabled: boolean, userId: string
             enabled ? "translate-x-6 bg-white" : "translate-x-0 bg-text-muted"
           )} />
         </button>
+        {!canManageProfileSecurity && (
+          <span className="text-[10px] uppercase tracking-wider text-text-muted">Admin only</span>
+        )}
       </div>
 
       <AnimatePresence>
