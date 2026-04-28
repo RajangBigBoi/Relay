@@ -13,6 +13,7 @@ export function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, profile } = useAuth();
+  const profileError = Boolean((location.state as any)?.profileError);
 
   // Redirect if already logged in ONLY if we were sent here by ProtectedRoute
   // or if we just successfully logged in on this page.
@@ -121,6 +122,17 @@ export function LoginPage() {
         )}
 
         <form onSubmit={handleEmailLogin} className="space-y-6">
+          {profileError && !error && (
+            <motion.div 
+              initial={{ opacity: 0, x: -10 }}
+              animate={{ opacity: 1, x: 0 }}
+              className="p-4 bg-amber-50 border border-amber-100 rounded-xl flex items-center gap-3 text-amber-700 text-xs font-semibold"
+            >
+              <AlertCircle className="w-4 h-4 shrink-0" />
+              We couldn't load your staff profile. Please sign in again or contact an admin.
+            </motion.div>
+          )}
+
           {error && (
             <motion.div 
               initial={{ opacity: 0, x: -10 }}

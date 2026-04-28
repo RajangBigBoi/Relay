@@ -8,6 +8,7 @@ import { DEFAULT_PERMISSIONS, can as canPermission } from '../lib/permissions';
 interface AuthContextType {
   user: User | null;
   profile: Staff | null;
+  profileError: string | null;
   loading: boolean;
   isAdmin: boolean;
   hasPermission: (flag: keyof PermissionFlags) => boolean;
@@ -17,6 +18,7 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType>({
   user: null,
   profile: null,
+  profileError: null,
   loading: true,
   isAdmin: false,
   hasPermission: () => false,
@@ -28,6 +30,7 @@ export const useAuth = () => useContext(AuthContext);
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<Staff | null>(null);
+  const [profileError, setProfileError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -41,7 +44,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     let unsubscribeProfile: (() => void) | null = null;
 
     const unsubscribeAuth = onAuthStateChanged(auth, async (firebaseUser) => {
+      didReceiveAuthState = true;
+      clearTimeout(authInitTimeout);
       setUser(firebaseUser);
+      setProfileError(null);
       
       // Cleanup previous profile listener if it exists
       if (unsubscribeProfile) {
@@ -54,6 +60,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         unsubscribeProfile = onSnapshot(doc(db, 'staffMembers', firebaseUser.uid), async (docSnap) => {
           if (docSnap.exists()) {
             setProfile({ id: docSnap.id, ...docSnap.data() } as Staff);
+            setProfileError(null);
             setLoading(false);
           } else {
              // Universal bootstrap for ANY user missing a profile
@@ -80,11 +87,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         });
       } else {
         setProfile(null);
+        setProfileError(null);
         setLoading(false);
       }
     });
 
     return () => {
+      clearTimeout(authInitTimeout);
       unsubscribeAuth();
       if (unsubscribeProfile) unsubscribeProfile();
     };
