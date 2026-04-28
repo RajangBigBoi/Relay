@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { collection, onSnapshot, query, doc, updateDoc, deleteDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { Staff, PlatformRole, Department, PermissionFlags } from '../types';
-import { useAuth, DEFAULT_PERMISSIONS } from '../context/AuthContext';
+import { useAuth } from '../context/AuthContext';
+import { DEFAULT_PERMISSIONS } from '../lib/permissions';
 import { 
   Users, 
   UserPlus, 
@@ -20,19 +21,38 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '../lib/utils';
 
 export function UserManagement() {
+  const { can } = useAuth();
   const [users, setUsers] = useState<Staff[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
   
   useEffect(() => {
+    if (!can('manage_staff')) {
+      setLoading(false);
+      setUsers([]);
+      return;
+    }
+
     const q = query(collection(db, 'staffMembers'));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       setUsers(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Staff)));
       setLoading(false);
+    }, () => {
+      setLoading(false);
     });
     return () => unsubscribe();
-  }, []);
+  }, [can]);
+
+  if (!can('manage_staff')) {
+    return (
+      <div className="p-8 lg:p-12">
+        <div className="rounded-2xl border border-glass-border bg-header-bg p-6 text-sm text-text-muted">
+          You do not have permission to manage user profiles.
+        </div>
+      </div>
+    );
+  }
 
   const handleUpdateUser = async (user: Staff, updates: Partial<Staff>) => {
     try {
