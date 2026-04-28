@@ -1,38 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { auth, db, createUserWithEmailAndPassword, updateProfile } from '../lib/firebase';
-import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Mail, Lock, User, AlertCircle, Loader2, X, Building2, Briefcase } from 'lucide-react';
-import { PlatformRole, Department, PermissionFlags } from '../types';
-
-const DEFAULT_PERMISSIONS: Record<PlatformRole, PermissionFlags> = {
-  Admin: {
-    view_all_cases: true, view_department_cases: true, create_cases: true, edit_own_cases: true, edit_all_cases: true,
-    resolve_cases: true, assign_cases: true, submit_handover: true, complete_checklist: true, manage_staff: true,
-    manage_checklists: true, view_audit_logs: true, manage_settings: true,
-  },
-  'Duty Manager': {
-    view_all_cases: true, view_department_cases: true, create_cases: true, edit_own_cases: true, edit_all_cases: true,
-    resolve_cases: true, assign_cases: true, submit_handover: true, complete_checklist: true, manage_staff: false,
-    manage_checklists: true, view_audit_logs: false, manage_settings: false,
-  },
-  'Department Lead': {
-    view_all_cases: false, view_department_cases: true, create_cases: true, edit_own_cases: true, edit_all_cases: true,
-    resolve_cases: true, assign_cases: true, submit_handover: false, complete_checklist: true, manage_staff: false,
-    manage_checklists: true, view_audit_logs: false, manage_settings: false,
-  },
-  Staff: {
-    view_all_cases: false, view_department_cases: true, create_cases: true, edit_own_cases: true, edit_all_cases: false,
-    resolve_cases: false, assign_cases: false, submit_handover: false, complete_checklist: true, manage_staff: false,
-    manage_checklists: false, view_audit_logs: false, manage_settings: false,
-  },
-  Viewer: {
-    view_all_cases: true, view_department_cases: true, create_cases: false, edit_own_cases: false, edit_all_cases: false,
-    resolve_cases: false, assign_cases: false, submit_handover: false, complete_checklist: false, manage_staff: false,
-    manage_checklists: false, view_audit_logs: false, manage_settings: false,
-  },
-};
 
 export function CreateAccountPage() {
   const [step, setStep] = useState<'details' | 'verify'>('details');

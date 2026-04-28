@@ -59,6 +59,7 @@ import { CreateAccountPage } from './components/CreateAccountPage';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { NotificationProvider, useNotifications } from './context/NotificationContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { firebaseConfigMissingVars, isFirebaseConfigured } from './lib/firebase';
 
 const queryClient = new QueryClient();
 
@@ -344,6 +345,11 @@ export default function App() {
       <BrowserRouter>
         <AuthProvider>
           <NotificationProvider>
+            {!isFirebaseConfigured && (
+              <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[200] max-w-3xl w-[calc(100%-2rem)] rounded-xl border border-red-300 bg-red-50 px-4 py-3 text-red-700 text-sm shadow-lg">
+                Firebase is not configured. Missing: {firebaseConfigMissingVars.join(', ')}. Add these values to <code>.env.local</code> (and Vercel environment variables) to enable login and data access.
+              </div>
+            )}
             <Routes>
               {/* Public Routes */}
               <Route path="/" element={<LandingPage />} />
@@ -362,7 +368,7 @@ export default function App() {
                  <Route path="checklist" element={<Checklist />} />
                  <Route path="audit" element={<AuditLoader />} />
                  <Route path="staff" element={<StaffLoader />} />
-                 <Route path="users" element={<UserManagement />} />
+                 <Route path="users" element={<UsersLoader />} />
                  <Route path="settings" element={<Settings />} />
               </Route>
 
@@ -422,4 +428,10 @@ function AuditLoader() {
   const { hasPermission } = useOutletContext<ContextType>();
   if (!hasPermission('view_audit_logs')) return <Navigate to="/app/dashboard" replace />;
   return <AuditLogViewer />;
+}
+
+function UsersLoader() {
+  const { hasPermission } = useOutletContext<ContextType>();
+  if (!hasPermission('manage_staff')) return <Navigate to="/app/dashboard" replace />;
+  return <UserManagement />;
 }
