@@ -362,7 +362,7 @@ export default function App() {
                  <Route path="checklist" element={<Checklist />} />
                  <Route path="audit" element={<AuditLoader />} />
                  <Route path="staff" element={<StaffLoader />} />
-                 <Route path="users" element={<UserManagement />} />
+                 <Route path="users" element={<UsersLoader />} />
                  <Route path="settings" element={<Settings />} />
               </Route>
 
@@ -422,4 +422,10 @@ function AuditLoader() {
   const { hasPermission } = useOutletContext<ContextType>();
   if (!hasPermission('view_audit_logs')) return <Navigate to="/app/dashboard" replace />;
   return <AuditLogViewer />;
+}
+
+function UsersLoader() {
+  const { hasPermission } = useOutletContext<ContextType>();
+  if (!hasPermission('manage_staff')) return <Navigate to="/app/dashboard" replace />;
+  return <UserManagement />;
 }
