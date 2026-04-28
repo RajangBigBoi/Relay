@@ -22,10 +22,13 @@ const missingFirebaseVars = Object.entries(firebaseConfig)
   .filter(([, value]) => !value)
   .map(([key]) => key);
 
-if (missingFirebaseVars.length > 0) {
-  throw new Error(
+export const firebaseConfigMissingVars = missingFirebaseVars;
+export const isFirebaseConfigured = missingFirebaseVars.length === 0;
+
+if (!isFirebaseConfigured) {
+  console.error(
     `Missing Firebase environment variables: ${missingFirebaseVars.join(', ')}. ` +
-    'Set them in your .env file before starting the app.'
+      'Set them in your .env.local and deployment environment variables.'
   );
 }
 
