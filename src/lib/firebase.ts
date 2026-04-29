@@ -32,7 +32,18 @@ if (!isFirebaseConfigured) {
   );
 }
 
-const app = initializeApp(firebaseConfig);
+// Use safe placeholders so app bootstrap doesn't hard-crash when env vars are missing.
+// The app logic gates auth/data flows with `isFirebaseConfigured`.
+const resolvedFirebaseConfig = {
+  apiKey: firebaseConfig.apiKey || 'missing-api-key',
+  authDomain: firebaseConfig.authDomain || 'localhost',
+  projectId: firebaseConfig.projectId || 'missing-project-id',
+  storageBucket: firebaseConfig.storageBucket || 'missing-storage-bucket',
+  messagingSenderId: firebaseConfig.messagingSenderId || '0',
+  appId: firebaseConfig.appId || 'missing-app-id',
+};
+
+const app = initializeApp(resolvedFirebaseConfig);
 export const db = getFirestore(app);
 export const auth = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();
