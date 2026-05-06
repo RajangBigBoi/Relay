@@ -353,6 +353,8 @@ export default function App() {
             <Routes>
               {/* Public Routes */}
               <Route path="/" element={<LandingPage />} />
+              <Route path="/landing" element={<LandingPage />} />
+              <Route path="/landmark" element={<LandingPage />} />
               <Route path="/login" element={<LoginPage />} />
               <Route path="/create-account" element={<CreateAccountPage />} />
 
