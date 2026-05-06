@@ -209,6 +209,8 @@ function MainLayout() {
 
   useEffect(() => {
     if (!profile || !profile.department) return;
+    const canSeedChecklists = hasPermission('manage_checklists') || hasPermission('manage_settings');
+    if (!canSeedChecklists) return;
     
     const q = query(collection(db, 'checklists'));
     const unsubscribe = onSnapshot(q, (s) => {
@@ -219,13 +221,17 @@ function MainLayout() {
           { task_name: 'Key Audit', category: 'Front Desk', shift: 'AM', required: true, completed: false, department: 'Front Office' },
           { task_name: 'Pending Trace Review', category: 'Operations', shift: 'AM', required: true, completed: false, department: 'Management' },
         ];
-        defaultTasks.forEach(t => addDoc(collection(db, 'checklists'), { ...t, created_at: serverTimestamp() }));
+        Promise.all(
+          defaultTasks.map(t => addDoc(collection(db, 'checklists'), { ...t, created_at: serverTimestamp() }))
+        ).catch((error) => {
+          console.error("Checklist Seed Write Error:", error);
+        });
       }
     }, (error) => {
       console.error("Checklist Seeding Error:", error);
     });
     return () => unsubscribe();
-  }, [profile]);
+  }, [profile, hasPermission]);
 
   if (authLoading) {
     return (
