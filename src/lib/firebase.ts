@@ -9,24 +9,13 @@ import {
 } from 'firebase/auth';
 import { getFirestore, doc, getDocFromServer } from 'firebase/firestore';
 
-type RuntimeFirebaseConfig = {
-  apiKey?: string;
-  authDomain?: string;
-  projectId?: string;
-  storageBucket?: string;
-  messagingSenderId?: string;
-  appId?: string;
-};
-
-const runtimeConfig = (globalThis as any).__RELAY_FIREBASE_CONFIG__ as RuntimeFirebaseConfig | undefined;
-
 const firebaseConfig = {
-  apiKey: runtimeConfig?.apiKey || import.meta.env.VITE_FIREBASE_API_KEY,
-  authDomain: runtimeConfig?.authDomain || import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-  projectId: runtimeConfig?.projectId || import.meta.env.VITE_FIREBASE_PROJECT_ID,
-  storageBucket: runtimeConfig?.storageBucket || import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: runtimeConfig?.messagingSenderId || import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-  appId: runtimeConfig?.appId || import.meta.env.VITE_FIREBASE_APP_ID,
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID,
 };
 
 const missingFirebaseVars = Object.entries(firebaseConfig)
@@ -35,7 +24,6 @@ const missingFirebaseVars = Object.entries(firebaseConfig)
 
 export const firebaseConfigMissingVars = missingFirebaseVars;
 export const isFirebaseConfigured = missingFirebaseVars.length === 0;
-export let firebaseInitError: string | null = null;
 
 if (!isFirebaseConfigured) {
   console.error(
@@ -44,37 +32,11 @@ if (!isFirebaseConfigured) {
   );
 }
 
-// Use safe placeholders so app bootstrap doesn't hard-crash when env vars are missing.
-// The app logic gates auth/data flows with `isFirebaseConfigured`.
-const resolvedFirebaseConfig = {
-  apiKey: firebaseConfig.apiKey || 'missing-api-key',
-  authDomain: firebaseConfig.authDomain || 'localhost',
-  projectId: firebaseConfig.projectId || 'missing-project-id',
-  storageBucket: firebaseConfig.storageBucket || 'missing-storage-bucket',
-  messagingSenderId: firebaseConfig.messagingSenderId || '0',
-  appId: firebaseConfig.appId || 'missing-app-id',
-};
-
-let app: any = null;
-let dbInstance: any = null;
-let authInstance: any = null;
-let googleProviderInstance: any = null;
-
-try {
-  app = initializeApp(resolvedFirebaseConfig);
-  dbInstance = getFirestore(app);
-  authInstance = getAuth(app);
-  googleProviderInstance = new GoogleAuthProvider();
-  googleProviderInstance.setCustomParameters({ prompt: 'select_account' });
-} catch (error: any) {
-  firebaseInitError = error?.message || 'Firebase initialization failed';
-  console.error('Firebase initialization error:', error);
-}
-
-export const db = dbInstance;
-export const auth = authInstance;
-export const googleProvider = googleProviderInstance;
-export const isFirebaseRuntimeReady = isFirebaseConfigured && !firebaseInitError;
+const app = initializeApp(firebaseConfig);
+export const db = getFirestore(app);
+export const auth = getAuth(app);
+export const googleProvider = new GoogleAuthProvider();
+googleProvider.setCustomParameters({ prompt: 'select_account' });
 
 export { signInWithEmailAndPassword, createUserWithEmailAndPassword, updateProfile };
 

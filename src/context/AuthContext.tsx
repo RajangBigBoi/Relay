@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { auth, db, isFirebaseRuntimeReady } from '../lib/firebase';
+import { auth, db, isFirebaseConfigured } from '../lib/firebase';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { doc, onSnapshot, setDoc, serverTimestamp } from 'firebase/firestore';
 import { Staff, PermissionFlags, PlatformRole } from '../types';
@@ -34,23 +34,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!isFirebaseRuntimeReady) {
+    if (!isFirebaseConfigured) {
       setUser(null);
       setProfile(null);
       setLoading(false);
       return;
     }
-
-    let didReceiveAuthState = false;
-    const authInitTimeout = setTimeout(() => {
-      if (!didReceiveAuthState) {
-        console.error('Firebase auth initialization timed out. Falling back to unauthenticated state.');
-        setUser(null);
-        setProfile(null);
-        setProfileError('Auth initialization timed out');
-        setLoading(false);
-      }
-    }, 10000);
 
     let unsubscribeProfile: (() => void) | null = null;
 
@@ -88,14 +77,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
              } catch (err) {
                console.error("Critical: Failed to bootstrap staff profile:", err);
                setProfile(null);
-               setProfileError('Failed to create staff profile');
                setLoading(false);
              }
           }
         }, (error) => {
           console.error("Profile Listener Error:", error);
           setProfile(null);
-          setProfileError(error?.message || 'Unable to read staff profile');
           setLoading(false);
         });
       } else {
@@ -120,7 +107,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const isAdmin = React.useMemo(() => profile?.role === 'Admin', [profile]);
 
   return (
-    <AuthContext.Provider value={{ user, profile, profileError, loading, isAdmin, hasPermission, can }}>
+    <AuthContext.Provider value={{ user, profile, loading, isAdmin, hasPermission, can }}>
       {children}
     </AuthContext.Provider>
   );
