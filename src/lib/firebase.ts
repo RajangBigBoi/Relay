@@ -76,6 +76,7 @@ export function handleFirestoreError(error: any, operationType: FirestoreErrorIn
 
 // Connection test
 async function testConnection() {
+  if (!db) return;
   try {
     await getDocFromServer(doc(db, 'test', 'connection'));
   } catch (error: any) {
@@ -87,4 +88,4 @@ async function testConnection() {
 testConnection();
 
 export const signIn = () => signInWithPopup(auth, googleProvider);
-export const signOut = () => auth.signOut();
+export const signOut = () => auth?.signOut?.();
