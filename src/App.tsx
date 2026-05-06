@@ -59,6 +59,7 @@ import { CreateAccountPage } from './components/CreateAccountPage';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { NotificationProvider, useNotifications } from './context/NotificationContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { firebaseConfigMissingVars, firebaseInitError, isFirebaseConfigured, isFirebaseRuntimeReady } from './lib/firebase';
 
 const queryClient = new QueryClient();
 
@@ -208,6 +209,8 @@ function MainLayout() {
 
   useEffect(() => {
     if (!profile || !profile.department) return;
+    const canSeedChecklists = hasPermission('manage_checklists') || hasPermission('manage_settings');
+    if (!canSeedChecklists) return;
     
     const q = query(collection(db, 'checklists'));
     const unsubscribe = onSnapshot(q, (s) => {
@@ -218,13 +221,17 @@ function MainLayout() {
           { task_name: 'Key Audit', category: 'Front Desk', shift: 'AM', required: true, completed: false, department: 'Front Office' },
           { task_name: 'Pending Trace Review', category: 'Operations', shift: 'AM', required: true, completed: false, department: 'Management' },
         ];
-        defaultTasks.forEach(t => addDoc(collection(db, 'checklists'), { ...t, created_at: serverTimestamp() }));
+        Promise.all(
+          defaultTasks.map(t => addDoc(collection(db, 'checklists'), { ...t, created_at: serverTimestamp() }))
+        ).catch((error) => {
+          console.error("Checklist Seed Write Error:", error);
+        });
       }
     }, (error) => {
       console.error("Checklist Seeding Error:", error);
     });
     return () => unsubscribe();
-  }, [profile]);
+  }, [profile, hasPermission]);
 
   if (authLoading) {
     return (
@@ -344,9 +351,19 @@ export default function App() {
       <BrowserRouter>
         <AuthProvider>
           <NotificationProvider>
+            {!isFirebaseRuntimeReady && (
+              <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[200] max-w-3xl w-[calc(100%-2rem)] rounded-xl border border-red-300 bg-red-50 px-4 py-3 text-red-700 text-sm shadow-lg">
+                {firebaseInitError
+                  ? <>Firebase failed to initialize: {firebaseInitError}. Check your API key and Firebase project settings.</>
+                  : <>Firebase is not configured. Missing: {firebaseConfigMissingVars.join(', ')}. Add these values to <code>.env.local</code> (and Vercel environment variables) to enable login and data access.</>
+                }
+              </div>
+            )}
             <Routes>
               {/* Public Routes */}
               <Route path="/" element={<LandingPage />} />
+              <Route path="/landing" element={<LandingPage />} />
+              <Route path="/landmark" element={<LandingPage />} />
               <Route path="/login" element={<LoginPage />} />
               <Route path="/create-account" element={<CreateAccountPage />} />
 
@@ -362,7 +379,7 @@ export default function App() {
                  <Route path="checklist" element={<Checklist />} />
                  <Route path="audit" element={<AuditLoader />} />
                  <Route path="staff" element={<StaffLoader />} />
-                 <Route path="users" element={<UserManagement />} />
+                 <Route path="users" element={<UsersLoader />} />
                  <Route path="settings" element={<Settings />} />
               </Route>
 
@@ -422,4 +439,10 @@ function AuditLoader() {
   const { hasPermission } = useOutletContext<ContextType>();
   if (!hasPermission('view_audit_logs')) return <Navigate to="/app/dashboard" replace />;
   return <AuditLogViewer />;
+}
+
+function UsersLoader() {
+  const { hasPermission } = useOutletContext<ContextType>();
+  if (!hasPermission('manage_staff')) return <Navigate to="/app/dashboard" replace />;
+  return <UserManagement />;
 }
