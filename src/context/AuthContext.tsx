@@ -1,115 +1,64 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { auth, db } from '../lib/firebase';
+import { auth, db, isFirebaseConfigured } from '../lib/firebase';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { doc, onSnapshot, setDoc, serverTimestamp } from 'firebase/firestore';
-import { Staff, PermissionFlags, PlatformRole, Department } from '../types';
+import { Staff, PermissionFlags, PlatformRole } from '../types';
+import { DEFAULT_PERMISSIONS, can as canPermission } from '../lib/permissions';
 
 interface AuthContextType {
   user: User | null;
   profile: Staff | null;
+  profileError: string | null;
   loading: boolean;
   isAdmin: boolean;
   hasPermission: (flag: keyof PermissionFlags) => boolean;
+  can: (flag: keyof PermissionFlags) => boolean;
 }
 
 const AuthContext = createContext<AuthContextType>({
   user: null,
   profile: null,
+  profileError: null,
   loading: true,
   isAdmin: false,
   hasPermission: () => false,
+  can: () => false,
 });
 
 export const useAuth = () => useContext(AuthContext);
 
-export const DEFAULT_PERMISSIONS: Record<PlatformRole, PermissionFlags> = {
-  Admin: {
-    view_all_cases: true,
-    view_department_cases: true,
-    create_cases: true,
-    edit_own_cases: true,
-    edit_all_cases: true,
-    resolve_cases: true,
-    assign_cases: true,
-    submit_handover: true,
-    complete_checklist: true,
-    manage_staff: true,
-    manage_checklists: true,
-    view_audit_logs: true,
-    manage_settings: true,
-  },
-  'Duty Manager': {
-    view_all_cases: true,
-    view_department_cases: true,
-    create_cases: true,
-    edit_own_cases: true,
-    edit_all_cases: true,
-    resolve_cases: true,
-    assign_cases: true,
-    submit_handover: true,
-    complete_checklist: true,
-    manage_staff: false,
-    manage_checklists: true,
-    view_audit_logs: false,
-    manage_settings: false,
-  },
-  'Department Lead': {
-    view_all_cases: false,
-    view_department_cases: true,
-    create_cases: true,
-    edit_own_cases: true,
-    edit_all_cases: true,
-    resolve_cases: true,
-    assign_cases: true,
-    submit_handover: false,
-    complete_checklist: true,
-    manage_staff: false,
-    manage_checklists: true,
-    view_audit_logs: false,
-    manage_settings: false,
-  },
-  Staff: {
-    view_all_cases: false,
-    view_department_cases: true,
-    create_cases: true,
-    edit_own_cases: true,
-    edit_all_cases: false,
-    resolve_cases: false,
-    assign_cases: false,
-    submit_handover: false,
-    complete_checklist: true,
-    manage_staff: false,
-    manage_checklists: false,
-    view_audit_logs: false,
-    manage_settings: false,
-  },
-  Viewer: {
-    view_all_cases: true,
-    view_department_cases: true,
-    create_cases: false,
-    edit_own_cases: false,
-    edit_all_cases: false,
-    resolve_cases: false,
-    assign_cases: false,
-    submit_handover: false,
-    complete_checklist: false,
-    manage_staff: false,
-    manage_checklists: false,
-    view_audit_logs: false,
-    manage_settings: false,
-  },
-};
-
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<Staff | null>(null);
+  const [profileError, setProfileError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (!isFirebaseConfigured) {
+      setUser(null);
+      setProfile(null);
+      setLoading(false);
+      return;
+    }
+
+    let didReceiveAuthState = false;
+    const authInitTimeout = setTimeout(() => {
+      if (!didReceiveAuthState) {
+        console.error('Firebase auth initialization timed out. Falling back to unauthenticated state.');
+        setUser(null);
+        setProfile(null);
+        setProfileError('Auth initialization timed out');
+        setLoading(false);
+      }
+    }, 10000);
+
     let unsubscribeProfile: (() => void) | null = null;
 
     const unsubscribeAuth = onAuthStateChanged(auth, async (firebaseUser) => {
+      didReceiveAuthState = true;
+      clearTimeout(authInitTimeout);
       setUser(firebaseUser);
+      setProfileError(null);
       
       // Cleanup previous profile listener if it exists
       if (unsubscribeProfile) {
@@ -118,17 +67,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       if (firebaseUser) {
-        // Safety timeout for profile loading
-        const profileTimeout = setTimeout(() => {
-          setLoading(false);
-        }, 10000);
-
         // Listen to profile changes
         unsubscribeProfile = onSnapshot(doc(db, 'staffMembers', firebaseUser.uid), async (docSnap) => {
-          clearTimeout(profileTimeout);
-          
           if (docSnap.exists()) {
             setProfile({ id: docSnap.id, ...docSnap.data() } as Staff);
+            setProfileError(null);
             setLoading(false);
           } else {
              // Universal bootstrap for ANY user missing a profile
@@ -144,34 +87,40 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                }, { merge: true });
              } catch (err) {
                console.error("Critical: Failed to bootstrap staff profile:", err);
+               setProfile(null);
+               setProfileError('Failed to create staff profile');
                setLoading(false);
              }
           }
         }, (error) => {
-          clearTimeout(profileTimeout);
           console.error("Profile Listener Error:", error);
+          setProfile(null);
+          setProfileError(error?.message || 'Unable to read staff profile');
           setLoading(false);
         });
       } else {
         setProfile(null);
+        setProfileError(null);
         setLoading(false);
       }
     });
 
     return () => {
+      clearTimeout(authInitTimeout);
       unsubscribeAuth();
       if (unsubscribeProfile) unsubscribeProfile();
     };
   }, []);
 
   const hasPermission = React.useCallback((flag: keyof PermissionFlags) => {
-    return profile?.permissions?.[flag] || false;
+    return canPermission(profile?.permissions, flag);
   }, [profile]);
 
+  const can = hasPermission;
   const isAdmin = React.useMemo(() => profile?.role === 'Admin', [profile]);
 
   return (
-    <AuthContext.Provider value={{ user, profile, loading, isAdmin, hasPermission }}>
+    <AuthContext.Provider value={{ user, profile, profileError, loading, isAdmin, hasPermission, can }}>
       {children}
     </AuthContext.Provider>
   );
