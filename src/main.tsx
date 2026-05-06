@@ -5,8 +5,20 @@ import { AppErrorBoundary } from './components/AppErrorBoundary.tsx';
 
 const root = createRoot(document.getElementById('root')!);
 
+async function loadRuntimeFirebaseConfig() {
+  try {
+    const response = await fetch('/firebase-config.json', { cache: 'no-store' });
+    if (!response.ok) return;
+    const json = await response.json();
+    (globalThis as any).__RELAY_FIREBASE_CONFIG__ = json;
+  } catch {
+    // No runtime config file found; env-based config will be used.
+  }
+}
+
 async function bootstrap() {
   try {
+    await loadRuntimeFirebaseConfig();
     const { default: App } = await import('./App.tsx');
     root.render(
       <StrictMode>

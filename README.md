@@ -38,6 +38,11 @@ Required variables:
 
 You can find these in **Firebase Console → Project settings → General → Your apps → SDK setup and configuration**.
 
+
+Alternative (pure web/runtime config):
+- Create `public/firebase-config.json` (you can copy `public/firebase-config.json.example`).
+- At runtime the app will load this file first, so you can deploy without build-time env injection.
+
 ### 3) Run locally
 ```bash
 npm run dev
