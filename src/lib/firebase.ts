@@ -30,6 +30,14 @@ function resolveConfigValue(envValue: string | undefined, runtimeValue: string |
   return cleanedRuntime;
 }
 
+function resolveValueSource(envValue: string | undefined, runtimeValue: string | undefined): 'env' | 'runtime' | 'missing' {
+  const cleanedEnv = envValue?.trim();
+  if (cleanedEnv) return 'env';
+  const cleanedRuntime = runtimeValue?.trim();
+  if (cleanedRuntime && !cleanedRuntime.startsWith('YOUR_') && !cleanedRuntime.includes('missing-')) return 'runtime';
+  return 'missing';
+}
+
 const firebaseConfig = {
   apiKey: resolveConfigValue(import.meta.env.VITE_FIREBASE_API_KEY, runtimeConfig?.apiKey),
   authDomain: resolveConfigValue(import.meta.env.VITE_FIREBASE_AUTH_DOMAIN, runtimeConfig?.authDomain),
@@ -37,6 +45,22 @@ const firebaseConfig = {
   storageBucket: resolveConfigValue(import.meta.env.VITE_FIREBASE_STORAGE_BUCKET, runtimeConfig?.storageBucket),
   messagingSenderId: resolveConfigValue(import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID, runtimeConfig?.messagingSenderId),
   appId: resolveConfigValue(import.meta.env.VITE_FIREBASE_APP_ID, runtimeConfig?.appId),
+};
+
+export const firebaseConfigDebug = {
+  source: {
+    apiKey: resolveValueSource(import.meta.env.VITE_FIREBASE_API_KEY, runtimeConfig?.apiKey),
+    authDomain: resolveValueSource(import.meta.env.VITE_FIREBASE_AUTH_DOMAIN, runtimeConfig?.authDomain),
+    projectId: resolveValueSource(import.meta.env.VITE_FIREBASE_PROJECT_ID, runtimeConfig?.projectId),
+    storageBucket: resolveValueSource(import.meta.env.VITE_FIREBASE_STORAGE_BUCKET, runtimeConfig?.storageBucket),
+    messagingSenderId: resolveValueSource(import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID, runtimeConfig?.messagingSenderId),
+    appId: resolveValueSource(import.meta.env.VITE_FIREBASE_APP_ID, runtimeConfig?.appId),
+  },
+  valuePreview: {
+    apiKey: firebaseConfig.apiKey ? `${firebaseConfig.apiKey.slice(0, 8)}...` : 'missing',
+    authDomain: firebaseConfig.authDomain || 'missing',
+    projectId: firebaseConfig.projectId || 'missing',
+  }
 };
 
 const missingFirebaseVars = Object.entries(firebaseConfig)

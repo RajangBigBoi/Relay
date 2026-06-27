@@ -59,7 +59,7 @@ import { CreateAccountPage } from './components/CreateAccountPage';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { NotificationProvider, useNotifications } from './context/NotificationContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
-import { firebaseConfigMissingVars, firebaseInitError, isFirebaseConfigured, isFirebaseRuntimeReady } from './lib/firebase';
+import { firebaseConfigDebug, firebaseConfigMissingVars, firebaseInitError, isFirebaseConfigured, isFirebaseRuntimeReady } from './lib/firebase';
 
 const queryClient = new QueryClient();
 
@@ -357,6 +357,9 @@ export default function App() {
                   ? <>Firebase failed to initialize: {firebaseInitError}. Check your API key and Firebase project settings.</>
                   : <>Firebase is not configured. Missing: {firebaseConfigMissingVars.join(', ')}. Add these values to <code>.env.local</code> (and Vercel environment variables) to enable login and data access.</>
                 }
+                <div className="mt-2 text-[11px] text-red-800/80">
+                  source(apiKey/authDomain/projectId): {firebaseConfigDebug.source.apiKey}/{firebaseConfigDebug.source.authDomain}/{firebaseConfigDebug.source.projectId} · preview: {firebaseConfigDebug.valuePreview.apiKey} · {firebaseConfigDebug.valuePreview.authDomain} · {firebaseConfigDebug.valuePreview.projectId}
+                </div>
               </div>
             )}
             <Routes>
